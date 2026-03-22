@@ -3,7 +3,7 @@ module alu (
     input  wire [7:0] B,
     input  wire [2:0] ALU_Control,
     output reg  [7:0] ALU_Result,
-    output wire        Zero
+    output wire        zero
 );
 
     // Combinational ALU
@@ -17,7 +17,7 @@ module alu (
         endcase
     end
 
-    assign Zero = (ALU_Result == 8'h00);
+    assign zero = (ALU_Result == 8'b00000000);
 
 endmodule
 

@@ -5,7 +5,7 @@ module tb_alu;
     reg  [7:0] B;
     reg  [2:0] ALU_Control;
     wire [7:0] ALU_Result;
-    wire        Zero;
+    wire        zero;
 
     reg  [7:0] vals [0:7];
     integer i, j;
@@ -15,7 +15,7 @@ module tb_alu;
         .B(B),
         .ALU_Control(ALU_Control),
         .ALU_Result(ALU_Result),
-        .Zero(Zero)
+        .zero(zero)
     );
 
     integer errors;
@@ -51,10 +51,10 @@ module tb_alu;
                     control, a_in, b_in, ALU_Result, exp);
             end
 
-            if (Zero !== exp_zero) begin
+            if (zero !== exp_zero) begin
                 errors = errors + 1;
-                $display("FAIL: control=%b A=%h B=%h => Zero=%b (expected %b)",
-                    control, a_in, b_in, Zero, exp_zero);
+                $display("FAIL: control=%b A=%h B=%h => zero=%b (expected %b)",
+                    control, a_in, b_in, zero, exp_zero);
             end
         end
     endtask
@@ -71,6 +71,7 @@ module tb_alu;
         check(3'b000, 8'h80, 8'h80); // ADD: 128 + 128 = 0 (wrap)
 
         check(3'b001, 8'h00, 8'h00); // SUB: 0 - 0 = 0
+        check(3'b001, 8'd5, 8'd5);   // SUB: 5 - 5 = 0 (zero flag)
         check(3'b001, 8'h12, 8'h12); // SUB: A - A = 0
         check(3'b001, 8'hFF, 8'hFF); // SUB: 255 - 255 = 0
 
