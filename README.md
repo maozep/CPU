@@ -1,18 +1,30 @@
-# 8-bit CPU Design and Implementation in Verilog
+# 8-bit RISC Processor Design (Verilog)
 
-This project is a step-by-step implementation of a simple 8-bit RISC-based CPU using Verilog. 
-It is part of my personal learning journey in Digital Systems and Computer Architecture.
+פרויקט זה מציג תכנון ומימוש של מעבד 8-ביט בארכיטקטורת RISC (Reduced Instruction Set Computer) באמצעות שפת Verilog. הפרויקט מתמקד בבנייה מודולרית של רכיבי החומרה ואימותם באמצעות סימולציות דיגיטליות.
 
-## Project Roadmap
-- [x] **Phase 1: ALU** - Arithmetic and Logic Unit with Zero Flag.
-- [x] **Phase 2: Register File** - 8 general-purpose 8-bit registers.
-- [ ] **Phase 3: Program Counter (PC)** - Instruction pointer and flow control. (In Progress)
-- [ ] **Phase 4: Instruction Memory** - ROM for storing program code.
-- [ ] **Phase 5: Control Unit** - CPU logic and instruction decoding.
-- [ ] **Phase 6: Integration** - Final top-module and assembly testing.
+## 🚀 מצב הפרויקט (Current Status)
+נכון לעכשיו, הושלם שלב הפיתוח והאימות של רכיבי הליבה (Core Components). כל רכיב נבדק בנפרד (Unit Testing) ונמצא תקין בסימולציות גלים.
 
-## Tools Used
-* **Editor:** Cursor AI
-* **Simulation:** Icarus Verilog
-* **Waveform Viewer:** GTKWave
-* **Version Control:** Git & GitHub
+### רכיבים שמומשו:
+* **ALU (Arithmetic Logic Unit)**: יחידה לביצוע פעולות אריתמטיות (חיבור, חיסור) ולוגיות (AND, OR, XOR).
+* **Register File**: מערך אוגרים פנימי (8x8-bit) המאפשר קריאה של שני אוגרים וכתיבה לאוגר אחד במקביל.
+* **Program Counter (PC)**: מונה תוכנית 8-ביט עם מנגנון איפוס אסינכרוני (Asynchronous Reset).
+* **Instruction Memory (IMEM)**: זיכרון לקריאה בלבד (ROM) בנפח 256 בתים, התומך בטעינת תוכנה מקובץ חיצוני (`program.hex`).
+
+## 📂 מבנה הפרויקט (Project Structure)
+הפרויקט מאורגן בהפרדה ברורה בין קוד המקור (Source) לבין סביבת הבדיקה (Tests):
+
+```text
+.
+├── src/                # קבצי המקור של המעבד (Design)
+│   ├── alu.v           # יחידה אריתמטית-לוגית
+│   ├── regfile.v       # קובץ אוגרים פנימי
+│   ├── pc.v            # מונה תוכנית (Program Counter)
+│   └── imem.v          # זיכרון פקודות (Instruction Memory)
+├── tests/              # סביבת בדיקה ואימות (Verification)
+│   ├── tb_alu.v
+│   ├── tb_regfile.v
+│   ├── tb_pc.v
+│   └── tb_imem.v
+├── program.hex         # קובץ קוד מכונה (Hex) לטעינה לזיכרון
+└── README.md
