@@ -1,30 +1,34 @@
 # 8-bit RISC Processor Design (Verilog)
 
-פרויקט זה מציג תכנון ומימוש של מעבד 8-ביט בארכיטקטורת RISC (Reduced Instruction Set Computer) באמצעות שפת Verilog. הפרויקט מתמקד בבנייה מודולרית של רכיבי החומרה ואימותם באמצעות סימולציות דיגיטליות.
+This project presents the design, implementation, and verification of an 8-bit RISC (Reduced Instruction Set Computer) processor using the Verilog Hardware Description Language (HDL). The project is built using a modular, top-down design approach, where each component is developed, tested, and verified independently (Unit Testing) prior to system-level integration.
 
-## 🚀 מצב הפרויקט (Current Status)
-נכון לעכשיו, הושלם שלב הפיתוח והאימות של רכיבי הליבה (Core Components). כל רכיב נבדק בנפרד (Unit Testing) ונמצא תקין בסימולציות גלים.
+## 🚀 Current Status
+Currently, the development and verification of the **Core Components** have been completed. All modules have been rigorously tested against edge cases and verified successfully using waveform simulations. 
 
-### רכיבים שמומשו:
-* **ALU (Arithmetic Logic Unit)**: יחידה לביצוע פעולות אריתמטיות (חיבור, חיסור) ולוגיות (AND, OR, XOR).
-* **Register File**: מערך אוגרים פנימי (8x8-bit) המאפשר קריאה של שני אוגרים וכתיבה לאוגר אחד במקביל.
-* **Program Counter (PC)**: מונה תוכנית 8-ביט עם מנגנון איפוס אסינכרוני (Asynchronous Reset).
-* **Instruction Memory (IMEM)**: זיכרון לקריאה בלבד (ROM) בנפח 256 בתים, התומך בטעינת תוכנה מקובץ חיצוני (`program.hex`).
+We are currently at the **Integration Phase**, successfully connecting the Program Counter to the Instruction Memory to create an automated Instruction Fetch path.
 
-## 📂 מבנה הפרויקט (Project Structure)
-הפרויקט מאורגן בהפרדה ברורה בין קוד המקור (Source) לבין סביבת הבדיקה (Tests):
+### Implemented & Verified Components:
+* **ALU (Arithmetic Logic Unit)**: Executes arithmetic (ADD, SUB) and logical (AND, OR, XOR) operations, featuring a Zero Flag to support future conditional branching.
+* **Register File**: An internal 8x8-bit register array supporting asynchronous dual-read and synchronous single-write operations within the same clock cycle.
+* **Program Counter (PC)**: An 8-bit counter equipped with an asynchronous reset mechanism.
+* **Instruction Memory (IMEM)**: A 256-byte Read-Only Memory (ROM) for instruction storage, supporting dynamic loading of machine code from an external hex file (`program.hex`).
+
+## 📂 Project Structure
+The repository is organized with a strict engineering separation between the design source code (RTL) and the verification environments (Testbenches):
 
 ```text
 .
-├── src/                # קבצי המקור של המעבד (Design)
-│   ├── alu.v           # יחידה אריתמטית-לוגית
-│   ├── regfile.v       # קובץ אוגרים פנימי
-│   ├── pc.v            # מונה תוכנית (Program Counter)
-│   └── imem.v          # זיכרון פקודות (Instruction Memory)
-├── tests/              # סביבת בדיקה ואימות (Verification)
+├── src/                # Hardware Design Source Files (RTL)
+│   ├── alu.v           # Arithmetic Logic Unit
+│   ├── regfile.v       # Register File
+│   ├── pc.v            # Program Counter
+│   ├── imem.v          # Instruction Memory
+│   └── cpu.v           # Top-Level Module (Integration)
+├── tests/              # Verification Environments (Testbenches)
 │   ├── tb_alu.v
 │   ├── tb_regfile.v
 │   ├── tb_pc.v
-│   └── tb_imem.v
-├── program.hex         # קובץ קוד מכונה (Hex) לטעינה לזיכרון
+│   ├── tb_imem.v
+│   ├── tb_cpu.v
+│   └── program.hex     # Machine code file loaded during simulation
 └── README.md
