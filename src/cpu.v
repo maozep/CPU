@@ -6,7 +6,7 @@
 module cpu (
     input  wire       clk,
     input  wire       rst,
-    output wire [7:0] current_instruction
+    output wire [15:0] current_instruction
 );
 
     // PC output drives IMEM address (fetch address bus).

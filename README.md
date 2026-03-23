@@ -7,6 +7,8 @@ Currently, the development and verification of the **Core Components** have been
 
 We are currently at the **Integration Phase**, successfully connecting the Program Counter to the Instruction Memory to create an automated Instruction Fetch path.
 
+This processor implements a **Harvard Architecture**: an **8-bit datapath** (ALU/Register File) and a **16-bit instruction width** (Instruction Memory / instruction fetch) to support a richer RISC ISA.
+
 ### Implemented & Verified Components:
 * **ALU (Arithmetic Logic Unit)**: Executes arithmetic (ADD, SUB) and logical (AND, OR, XOR) operations, featuring a Zero Flag to support future conditional branching.
 * **Register File**: An internal 8x8-bit register array supporting asynchronous dual-read and synchronous single-write operations within the same clock cycle.

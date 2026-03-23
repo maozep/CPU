@@ -7,7 +7,7 @@ module tb_cpu;
 
     reg         clk;
     reg         rst;
-    wire [7:0]  current_instruction;
+    wire [15:0] current_instruction;
 
     // Unit under test: top-level CPU (PC + IMEM).
     cpu uut (
@@ -30,7 +30,7 @@ module tb_cpu;
 
         // Print time, reset, PC bus, and fetched instruction when any change.
         $monitor(
-            "t=%0t  rst=%b  pc=0x%02h  current_instruction=0x%02h",
+            "t=%0t  rst=%b  pc=0x%02h  current_instruction=0x%04h",
             $time,
             rst,
             uut.pc_to_imem,
