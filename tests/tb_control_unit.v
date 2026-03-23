@@ -29,8 +29,10 @@ module tb_control_unit;
         errors = 0;
 
         // ADD scenario: opcode=4'h1 => ADD => reg_write=1, alu_op=3'b000
-        // Fields: rd=3, rs1=1, rs2=2 => instr = 0x1650
-        instr = 16'h1650;
+        // Field layout aligned to root `program.hex`:
+        // rd=in;str[10:8], rs1=instr[6:4], rs2=instr[2:0]
+        // Choose rd=3, rs1=1, rs2=2 => instr = 0x1312
+        instr = 16'h1312;
         #1;
         $display("ADD  instr=0x%04h opcode=0x%1h rd=%0d rs1=%0d rs2=%0d reg_write=%b alu_op=0x%1h",
             instr, opcode, rd_addr, rs1_addr, rs2_addr, reg_write, alu_op);
@@ -40,8 +42,9 @@ module tb_control_unit;
         end
 
         // SUB scenario: opcode=4'h2 => SUB => reg_write=1, alu_op=3'b001
-        // Fields: rd=2, rs1=3, rs2=1 => instr = 0x24C8
-        instr = 16'h24C8;
+        // Example instruction aligned to root `program.hex` encoding.
+        // Choose an instruction with opcode=2 => instr = 0x2541
+        instr = 16'h2541;
         #1;
         $display("SUB  instr=0x%04h opcode=0x%1h rd=%0d rs1=%0d rs2=%0d reg_write=%b alu_op=0x%1h",
             instr, opcode, rd_addr, rs1_addr, rs2_addr, reg_write, alu_op);
@@ -51,7 +54,8 @@ module tb_control_unit;
         end
 
         // Unknown scenario: opcode not in {1,2,3,4} => reg_write=0, alu_op=3'b000
-        // Fields: rd=1, rs1=2, rs2=3 => instr = 0x9298 (opcode=9)
+        // Keep any rd/rs1/rs2 fields; only opcode matters for reg_write/alu_op.
+        // opcode=9 => instr = 0x9298
         instr = 16'h9298;
         #1;
         $display("UNK  instr=0x%04h opcode=0x%1h rd=%0d rs1=%0d rs2=%0d reg_write=%b alu_op=0x%1h",

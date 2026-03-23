@@ -19,8 +19,8 @@ module tb_cpu;
     // 10 ns period: toggle every 5 ns.
     always #5 clk = ~clk;
 
-    // Print key decode/execute signals each cycle.
-    always @(posedge clk) begin
+    // Print key decode/execute signals each cycle (on falling edge for stability).
+    always @(negedge clk) begin
         // Small delay so hierarchical/combinational nets settle.
         #0.1;
 
@@ -50,12 +50,6 @@ module tb_cpu;
         $dumpvars(0, tb_cpu);
         $display("VCD file should be generated now (cpu_waves.vcd).");
 
-        // Initialize Register File at simulation start (time 0, same timestamp).
-        // Use #0 to avoid races with regfile.v's own time-0 initialization.
-        #0;
-        uut.regfile_inst.regs[1] = 8'd10; // R1 = 10
-        uut.regfile_inst.regs[2] = 8'd5;  // R2 = 5
-
         // Print time, reset, PC bus, and fetched instruction when any change.
         $monitor(
             "t=%0t  rst=%b  pc=0x%02h  current_instruction=0x%04h",
@@ -67,7 +61,15 @@ module tb_cpu;
 
         // Hold reset for exactly 20 ns, then release.
         #20;
-        rst = 1'b0;
+        rst = 1'b0; // Wait for reset to finish
+
+        // Wait a bit more so regfile internal state settles.
+        #5;
+
+        // Initialize Register File after reset deassertion.
+        // NOTE: regs is an internal array inside src/regfile.v (simulation-only).
+        uut.regfile_inst.regs[1] = 8'd10; // R1 = 10
+        uut.regfile_inst.regs[2] = 8'd5;  // R2 = 5
 
         // Observe sequential fetches as PC advances.
         #120;

@@ -14,9 +14,11 @@ module control_unit (
     always @* begin
         // Instruction field extraction
         opcode   = instr[15:12];
-        rd_addr  = instr[11:9];
-        rs1_addr = instr[8:6];
-        rs2_addr = instr[5:3];
+        // Field layout aligned to root `program.hex` encoding:
+        // rd=instr[10:8], rs1=instr[6:4], rs2=instr[2:0]
+        rd_addr  = instr[10:8];
+        rs1_addr = instr[6:4];
+        rs2_addr = instr[2:0];
 
         // Defaults (no writeback)
         reg_write = 1'b0;
