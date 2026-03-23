@@ -50,6 +50,12 @@ module tb_cpu;
         $dumpvars(0, tb_cpu);
         $display("VCD file should be generated now (cpu_waves.vcd).");
 
+        // Initialize Register File at simulation start (time 0, same timestamp).
+        // Use #0 to avoid races with regfile.v's own time-0 initialization.
+        #0;
+        uut.regfile_inst.regs[1] = 8'd10; // R1 = 10
+        uut.regfile_inst.regs[2] = 8'd5;  // R2 = 5
+
         // Print time, reset, PC bus, and fetched instruction when any change.
         $monitor(
             "t=%0t  rst=%b  pc=0x%02h  current_instruction=0x%04h",
@@ -62,14 +68,6 @@ module tb_cpu;
         // Hold reset for exactly 20 ns, then release.
         #20;
         rst = 1'b0;
-
-        // Initialize Register File so ALU inputs are non-zero.
-        // NOTE: regs is an internal array inside src/regfile.v.
-        // Use hierarchical access for simulation-only testing.
-        #1;
-        uut.regfile_inst.regs[1] = 8'd10; // R1 = 10
-        uut.regfile_inst.regs[2] = 8'd20; // R2 = 20
-        uut.regfile_inst.regs[6] = 8'd30; // Helpful for the default program word 0x1234 (rs2=6)
 
         // Observe sequential fetches as PC advances.
         #120;

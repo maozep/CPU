@@ -6,7 +6,7 @@ module imem (
     reg [15:0] mem [0:255];
 
     initial begin
-        $readmemh("program.hex", mem);
+        $readmemh("C:/Users/LENOVO/Desktop/cursor/Simple-8bit-CPU-Verilog/program.hex", mem);
     end
 
     assign instr = mem[addr];
