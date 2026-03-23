@@ -19,6 +19,27 @@ module tb_cpu;
     // 10 ns period: toggle every 5 ns.
     always #5 clk = ~clk;
 
+    // Print key decode/execute signals each cycle.
+    always @(posedge clk) begin
+        // Small delay so hierarchical/combinational nets settle.
+        #0.1;
+
+        // program.hex in this repo is intentionally short; after a few addresses,
+        // IMEM contents can become X. Keep prints deterministic for the first 5 bytes.
+        if (uut.pc_to_imem <= 8'd4) begin
+            $display(
+                "t=%0t PC=%0d opcode=0x%1h rs1_data=0x%02h rs2_data=0x%02h alu_result=0x%02h reg_write=%b",
+                $time,
+                uut.pc_to_imem,
+                uut.opcode,
+                uut.rs1_data,
+                uut.rs2_data,
+                uut.alu_result,
+                uut.reg_write
+            );
+        end
+    end
+
     initial begin
         // Known starting clock level and asserted reset before dumping/monitoring.
         clk = 1'b0;
@@ -27,6 +48,7 @@ module tb_cpu;
         // Waveform dump (entire testbench hierarchy).
         $dumpfile("cpu_waves.vcd");
         $dumpvars(0, tb_cpu);
+        $display("VCD file should be generated now (cpu_waves.vcd).");
 
         // Print time, reset, PC bus, and fetched instruction when any change.
         $monitor(
@@ -41,8 +63,16 @@ module tb_cpu;
         #20;
         rst = 1'b0;
 
+        // Initialize Register File so ALU inputs are non-zero.
+        // NOTE: regs is an internal array inside src/regfile.v.
+        // Use hierarchical access for simulation-only testing.
+        #1;
+        uut.regfile_inst.regs[1] = 8'd10; // R1 = 10
+        uut.regfile_inst.regs[2] = 8'd20; // R2 = 20
+        uut.regfile_inst.regs[6] = 8'd30; // Helpful for the default program word 0x1234 (rs2=6)
+
         // Observe sequential fetches as PC advances.
-        #100;
+        #120;
 
         $finish;
     end
