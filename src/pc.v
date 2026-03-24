@@ -14,7 +14,7 @@ module pc (
         if (reset)
             pc_out <= 8'd0;
         else if (is_branch && zero)
-            pc_out <= pc_out + 8'd1 + {2'b00, branch_offset};
+            pc_out <= pc_out + 8'd1 + {{2{branch_offset[5]}}, branch_offset};
         else
             pc_out <= pc_out + 8'd1;
     end
