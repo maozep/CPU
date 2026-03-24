@@ -1,12 +1,13 @@
-# Icarus Verilog compiled files (הקבצים שהסימולטור מייצר)
-sim_run
+# Icarus Verilog outputs (compiled binaries & logs)
 *_sim
 *.vvp
+*.out
+sim_*
 
-# GTKWave files (קבצי הגלים הכבדים)
+# GTKWave files (heavy waveform data)
 *.vcd
 *.gtkw
 
-# OS generated files (קבצי זבל של מערכת ההפעלה)
+# OS generated files
 .DS_Store
 Thumbs.db

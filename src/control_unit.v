@@ -8,17 +8,19 @@ module control_unit (
     output reg  [2:0]  rs1_addr,
     output reg  [2:0]  rs2_addr,
     output reg         reg_write,
-    output reg  [2:0]  alu_op
+    output reg  [2:0]  alu_op,
+    output wire        is_branch
 );
 
+    assign is_branch = (opcode == 4'h5);
+
     always @* begin
-        // Instruction field extraction
+        // Default decode (R-type):
+        // [15:12] opcode | [11:9] rd | [8:6] rs1 | [5:3] rs2 | [2:0] imm
         opcode   = instr[15:12];
-        // Field layout aligned to root `program.hex` encoding:
-        // rd=instr[10:8], rs1=instr[6:4], rs2=instr[2:0]
-        rd_addr  = instr[10:8];
-        rs1_addr = instr[6:4];
-        rs2_addr = instr[2:0];
+        rd_addr  = instr[11:9];
+        rs1_addr = instr[8:6];
+        rs2_addr = instr[5:3];
 
         // Defaults (no writeback)
         reg_write = 1'b0;
@@ -40,6 +42,14 @@ module control_unit (
             4'h4: begin // OR
                 reg_write = 1'b1;
                 alu_op    = 3'b011;
+            end
+            4'h5: begin // BEQ
+                // BEQ mapping (strict 16-bit):
+                // instr[11:9] = rs1, instr[8:6] = rs2, instr[5:0] = branch offset
+                rs1_addr = instr[11:9];
+                rs2_addr = instr[8:6];
+                reg_write = 1'b0;
+                alu_op    = 3'b001; // SUB for equality compare via zero flag
             end
             default: begin
                 reg_write = 1'b0;

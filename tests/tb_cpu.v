@@ -28,14 +28,15 @@ module tb_cpu;
         // IMEM contents can become X. Keep prints deterministic for the first 5 bytes.
         if (uut.pc_to_imem <= 8'd4) begin
             $display(
-                "t=%0t PC=%0d opcode=0x%1h rs1_data=0x%02h rs2_data=0x%02h alu_result=0x%02h reg_write=%b",
+                "Time=%0t | PC=%0d | Instr=0x%04h | rs1_val=0x%02h | rs2_val=0x%02h | Zero=%b | Is_Branch=%b | Next_PC=%0d",
                 $time,
                 uut.pc_to_imem,
-                uut.opcode,
+                current_instruction,
                 uut.rs1_data,
                 uut.rs2_data,
-                uut.alu_result,
-                uut.reg_write
+                uut.alu_zero,
+                uut.is_branch,
+                ((uut.is_branch && uut.alu_zero) ? (uut.pc_to_imem + 8'd1 + {2'b00, current_instruction[5:0]}) : (uut.pc_to_imem + 8'd1))
             );
         end
     end
@@ -59,20 +60,45 @@ module tb_cpu;
             current_instruction
         );
 
+        // Branch test #1 (taken): BEQ instruction in 4-digit hex.
+        // Example requested: 0x5121
+        uut.imem_inst.rom[0] = 16'h5121;
+        uut.imem_inst.rom[1] = 16'h0000;
+        uut.imem_inst.rom[2] = 16'h0000;
+        uut.imem_inst.rom[3] = 16'h0000;
+        uut.regfile_inst.regs[1] = 8'd10;
+        uut.regfile_inst.regs[2] = 8'd10;
+
         // Hold reset for exactly 20 ns, then release.
         #20;
         rst = 1'b0; // Wait for reset to finish
-
-        // Wait a bit more so regfile internal state settles.
         #5;
 
-        // Initialize Register File after reset deassertion.
-        // NOTE: regs is an internal array inside src/regfile.v (simulation-only).
-        uut.regfile_inst.regs[1] = 8'd10; // R1 = 10
-        uut.regfile_inst.regs[2] = 8'd5;  // R2 = 5
+        // Let one BEQ decision happen, then report.
+        @(posedge clk);
+        #0.1;
+        if (uut.pc_to_imem == 8'd34)
+            $display("PASS BEQ-Taken: PC=%0d, Is_Branch=%b, Zero=%b", uut.pc_to_imem, uut.is_branch, uut.alu_zero);
+        else
+            $display("FAIL BEQ-Taken: PC=%0d (expected 34), Is_Branch=%b, Zero=%b", uut.pc_to_imem, uut.is_branch, uut.alu_zero);
+
+        // Branch test #2 (not taken): same BEQ, but R1 != R2.
+        // Reset PC to 0 to rerun from mem[0].
+        rst = 1'b1;
+        #2;
+        uut.regfile_inst.regs[4] = 8'd1; // For 0x5121, rs2 decodes to R4
+        rst = 1'b0;
+        #5;
+
+        @(posedge clk);
+        #0.1;
+        if (uut.pc_to_imem == 8'd1)
+            $display("PASS BEQ-NotTaken: PC=%0d, Is_Branch=%b, Zero=%b", uut.pc_to_imem, uut.is_branch, uut.alu_zero);
+        else
+            $display("FAIL BEQ-NotTaken: PC=%0d (expected 1), Is_Branch=%b, Zero=%b", uut.pc_to_imem, uut.is_branch, uut.alu_zero);
 
         // Observe sequential fetches as PC advances.
-        #120;
+        #80;
 
         $finish;
     end

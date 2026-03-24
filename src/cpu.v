@@ -12,12 +12,17 @@ module cpu (
 
     // PC output drives IMEM address (fetch address bus).
     wire [7:0] pc_to_imem;
+    wire [5:0] branch_offset;
+    assign branch_offset = current_instruction[5:0];
 
     // Program counter: advances each clock when not in reset.
     pc pc_inst (
-        .clk   (clk),
-        .reset (rst),
-        .pc_out(pc_to_imem)
+        .clk          (clk),
+        .reset        (rst),
+        .is_branch    (is_branch),
+        .zero         (alu_zero),
+        .branch_offset(branch_offset),
+        .pc_out       (pc_to_imem)
     );
 
     // Instruction ROM: combinational read from program.hex image.
@@ -33,6 +38,7 @@ module cpu (
     wire [2:0] rs2_addr;
     wire       reg_write;
     wire [2:0] alu_op;
+    wire       is_branch;
 
     control_unit control_unit_inst (
         .instr     (current_instruction),
@@ -41,7 +47,8 @@ module cpu (
         .rs1_addr  (rs1_addr),
         .rs2_addr  (rs2_addr),
         .reg_write (reg_write),
-        .alu_op    (alu_op)
+        .alu_op    (alu_op),
+        .is_branch (is_branch)
     );
 
     // Register read operands (asynchronous dual-read)
@@ -50,7 +57,7 @@ module cpu (
 
     // ALU result (combinational)
     wire [7:0] alu_result;
-    wire       alu_zero_unused;
+    wire       alu_zero;
 
     // Execute + writeback (single-cycle: regfile writes on posedge clk)
     wire reg_write_gated = reg_write & ~rst;
@@ -71,6 +78,6 @@ module cpu (
         .B            (rs2_data),
         .ALU_Control (alu_op),
         .ALU_Result  (alu_result),
-        .zero         (alu_zero_unused)
+        .zero         (alu_zero)
     );
 endmodule

@@ -3,12 +3,12 @@ module imem (
     output wire [15:0] instr
 );
 
-    reg [15:0] mem [0:255];
+    reg [15:0] rom [0:255];
 
     initial begin
-        $readmemh("C:/Users/LENOVO/Desktop/cursor/Simple-8bit-CPU-Verilog/program.hex", mem);
+        $readmemh("C:/Users/LENOVO/Desktop/cursor/Simple-8bit-CPU-Verilog/program.hex", rom);
     end
 
-    assign instr = mem[addr];
+    assign instr = rom[addr];
 
 endmodule
