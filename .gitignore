@@ -1,13 +1,32 @@
-# Icarus Verilog outputs (compiled binaries & logs)
+# --- Icarus Verilog outputs ---
+# Compiled binaries, logs and simulation executables
 *_sim
 *.vvp
 *.out
 sim_*
+vvp_out.txt
 
-# GTKWave files (heavy waveform data)
+# --- GTKWave files ---
+# Waveform data files can be very heavy, we don't want them in Git
 *.vcd
 *.gtkw
+*.lxt
+*.lxt2
 
-# OS generated files
+# --- IDE & Editor files ---
+# Cursor / VS Code settings and workspace files
+.vscode/
+.cursor/
+*.code-workspace
+
+# --- OS generated files ---
 .DS_Store
+.DS_Store?
+._*
 Thumbs.db
+desktop.ini
+
+# --- Python / Logic tools (Optional) ---
+# If you use scripts to generate your .hex files
+__pycache__/
+*.pyc

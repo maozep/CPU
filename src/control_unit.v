@@ -9,10 +9,14 @@ module control_unit (
     output reg  [2:0]  rs2_addr,
     output reg         reg_write,
     output reg  [2:0]  alu_op,
-    output wire        is_branch
+    output wire        is_branch,
+    output wire        is_bne
 );
 
+    parameter BNE = 4'h6;
+
     assign is_branch = (opcode == 4'h5);
+    assign is_bne    = (opcode == BNE);
 
     always @* begin
         // Default decode (R-type):
@@ -50,6 +54,12 @@ module control_unit (
                 rs2_addr = instr[8:6];
                 reg_write = 1'b0;
                 alu_op    = 3'b001; // SUB for equality compare via zero flag
+            end
+            BNE: begin // BNE (same field layout as BEQ)
+                rs1_addr = instr[11:9];
+                rs2_addr = instr[8:6];
+                reg_write = 1'b0;
+                alu_op    = 3'b001; // SUB for compare via zero flag
             end
             default: begin
                 reg_write = 1'b0;

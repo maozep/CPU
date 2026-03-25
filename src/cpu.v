@@ -20,6 +20,7 @@ module cpu (
         .clk          (clk),
         .reset        (rst),
         .is_branch    (is_branch),
+        .is_bne       (is_bne),
         .zero         (alu_zero),
         .branch_offset(branch_offset),
         .pc_out       (pc_to_imem)
@@ -39,6 +40,7 @@ module cpu (
     wire       reg_write;
     wire [2:0] alu_op;
     wire       is_branch;
+    wire       is_bne;
 
     control_unit control_unit_inst (
         .instr     (current_instruction),
@@ -48,7 +50,8 @@ module cpu (
         .rs2_addr  (rs2_addr),
         .reg_write (reg_write),
         .alu_op    (alu_op),
-        .is_branch (is_branch)
+        .is_branch (is_branch),
+        .is_bne    (is_bne)
     );
 
     // Register read operands (asynchronous dual-read)

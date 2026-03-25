@@ -9,7 +9,7 @@ We have verified the complete **Fetch-Decode-Execute** cycle, including support 
 
 ### Implemented & Verified Components:
 * **Full CPU Integration**: Successfully wired all sub-modules into a cohesive processing unit.
-* **Control Flow & Branching**: Implemented `BEQ` with **Sign Extension** for 6-bit offsets.
+* **Control Flow & Branching**: Implemented `BEQ` and **`BNE`** with **Sign Extension** for 6-bit offsets.
 * **Multi-Cycle Execution**: Verified sequences of instructions with data dependencies and jumps.
 * **Control Unit**: Decodes 16-bit instructions into specific control signals for the ALU, Register File, and PC.
 * **ALU (Arithmetic Logic Unit)**: Executes arithmetic (ADD, SUB) and logical (AND, OR) operations with a `Zero` flag.
@@ -19,16 +19,17 @@ We have verified the complete **Fetch-Decode-Execute** cycle, including support 
 ## ✅ Verification Results
 The processor's logic has been rigorously verified through behavioral simulation using **Icarus Verilog** and **GTKWave**.
 
-### System Integration Test: Countdown Loop
-The latest integration run confirmed successful execution of a **Countdown Loop**:
-* **Algorithm:** The processor was loaded with a program that decrements a counter from 5 to 0.
-* **Branch Logic:** The `BEQ` instruction correctly identified when the counter reached zero, breaking the loop and jumping to the "EXIT" address.
-* **Backward Jumping:** Verified that the **Signed Offset** correctly recalculated the PC to jump backward in memory (e.g., PC 2 -> PC 0).
+### System Integration Test: Accumulation Loop (1 to 5)
+The latest integration run confirmed successful execution of an **Arithmetic Accumulation Loop**:
+* **Algorithm:** The processor calculates the sum of integers from 1 to 5 (1+2+3+4+5=15).
+* **Branch Logic:** The **`BNE`** instruction correctly identifies when the counter has not yet reached the target, jumping back to the loop start.
+* **Backward Jumping:** Verified that the **Signed Offset** correctly recalculated the PC to jump backward (e.g., PC 4 -> PC 2).
 
 #### Waveform Analysis:
 - **T=20ns:** Reset phase completed.
-- **T=25ns-140ns:** Successive loop iterations (decrementing R1).
-- **T=145ns:** `Zero` flag triggered. PC jumps from address 1 directly to address 3, bypassing the loop-back instruction.
+- **T=25ns-300ns:** Successive loop iterations, updating the sum in R3.
+- **T=310ns:** Target reached, `BNE` condition fails (values are equal), and the processor reaches the `HALT` state.
+- **Final Result:** Register R3 contains `0x0F` (15).
 
 ## 🛠️ Instruction Set Architecture (ISA)
 The processor utilizes a **16-bit instruction width** to support a rich set of operations while maintaining an **8-bit datapath**.
@@ -43,6 +44,7 @@ The processor utilizes a **16-bit instruction width** to support a rich set of o
 | `4'h3` | **AND** | `Rd = Rs1 & Rs2` | Bitwise Logical AND | **Verified** |
 | `4'h4` | **OR** | `Rd = Rs1 \| Rs2` | Bitwise Logical OR | **Verified** |
 | `4'h5` | **BEQ** | `if(Rs1==Rs2) PC+=1+Imm` | Branch if Equal (Signed) | **Verified** |
+| `4'h6` | **BNE** | `if(Rs1!=Rs2) PC+=1+Imm` | Branch if Not Equal (Signed) | **Verified** |
 
 ## 📂 Project Structure
 ```text

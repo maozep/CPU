@@ -4,9 +4,14 @@ module imem (
 );
 
     reg [15:0] rom [0:255];
+    integer i;
 
     initial begin
-        $readmemh("C:/Users/LENOVO/Desktop/cursor/Simple-8bit-CPU-Verilog/program.hex", rom);
+        // Initialize full ROM to zero to avoid X fetches beyond loaded lines.
+        for (i = 0; i < 256; i = i + 1) begin
+            rom[i] = 16'h0000;
+        end
+        $readmemh("tests/program.hex", rom);
     end
 
     assign instr = rom[addr];

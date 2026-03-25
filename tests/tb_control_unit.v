@@ -9,6 +9,8 @@ module tb_control_unit;
     wire [2:0]  rs2_addr;
     wire         reg_write;
     wire [2:0]  alu_op;
+    wire         is_branch;
+    wire         is_bne;
 
     control_unit dut (
         .instr     (instr),
@@ -17,7 +19,9 @@ module tb_control_unit;
         .rs1_addr  (rs1_addr),
         .rs2_addr  (rs2_addr),
         .reg_write (reg_write),
-        .alu_op    (alu_op)
+        .alu_op    (alu_op),
+        .is_branch (is_branch),
+        .is_bne    (is_bne)
     );
 
     integer errors;
@@ -50,6 +54,17 @@ module tb_control_unit;
             instr, opcode, rd_addr, rs1_addr, rs2_addr, reg_write, alu_op);
         if (reg_write !== 1'b1 || alu_op !== 3'b001) begin
             $display("FAIL: SUB control mismatch");
+            errors = errors + 1;
+        end
+
+        // BNE scenario: opcode=6 => is_bne=1, is_branch=0, reg_write=0, alu_op=SUB (compare)
+        // Same branch-style field map as BEQ: rs1=instr[11:9], rs2=instr[8:6], offset in [5:0]
+        instr = 16'h6280;
+        #1;
+        $display("BNE  instr=0x%04h opcode=0x%1h rs1=%0d rs2=%0d reg_write=%b alu_op=0x%1h is_branch=%b is_bne=%b",
+            instr, opcode, rs1_addr, rs2_addr, reg_write, alu_op, is_branch, is_bne);
+        if (is_bne !== 1'b1 || is_branch !== 1'b0 || reg_write !== 1'b0 || alu_op !== 3'b001) begin
+            $display("FAIL: BNE control mismatch");
             errors = errors + 1;
         end
 

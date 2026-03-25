@@ -26,11 +26,8 @@ module regfile (
     // Optional initialization for clean simulation starts
     integer i;
     initial begin
-        // "Reset" initialization (there is no explicit rst port).
-        regs[0] = 8'h00;
-        regs[1] = 8'd10;
-        regs[2] = 8'd5;
-        for (i = 3; i < 8; i = i + 1) begin
+        // Start all registers at zero for deterministic waveforms.
+        for (i = 0; i < 8; i = i + 1) begin
             regs[i] = 8'h00;
         end
     end
