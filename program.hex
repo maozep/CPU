@@ -1,4 +1,0 @@
-1200  // PC=0: R1 = R0 + R0
-1278  // PC=1: R1 = R1 + R7
-62BE  // PC=2: BNE R1, R2, Offset=-2 (to PC=1)
-0000  // PC=3: HALT

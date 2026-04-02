@@ -8,7 +8,7 @@ module tb_cpu;
     reg         clk;
     reg         rst;
     wire [15:0] current_instruction;
-    reg         loop_passed;
+    reg         program_passed;
 
     // Unit under test: top-level CPU (PC + IMEM).
     cpu uut (
@@ -25,7 +25,7 @@ module tb_cpu;
         // Small delay so hierarchical/combinational nets settle.
         #0.1;
         $display(
-            "Time=%0t | PC=%0d | Instr=0x%04h | rs1_val=0x%02h | rs2_val=0x%02h | Zero=%b | Is_Branch=%b | Is_BNE=%b | branch_offset=%0d | Next_PC=%0d",
+            "Time=%0t | PC=%0d | Instr=0x%04h | rs1_val=0x%02h | rs2_val=0x%02h | Zero=%b | Is_Branch=%b | Is_BNE=%b | Is_HALT=%b | branch_offset=%0d | Next_PC=%0d",
             $time,
             uut.pc_to_imem,
             current_instruction,
@@ -34,10 +34,13 @@ module tb_cpu;
             uut.alu_zero,
             uut.is_branch,
             uut.is_bne,
+            uut.is_halt,
             $signed({{2{current_instruction[5]}}, current_instruction[5:0]}),
-            (((uut.is_branch && uut.alu_zero) || (uut.is_bne && !uut.alu_zero))
+            (uut.is_halt
+                ? uut.pc_to_imem
+                : (((uut.is_branch && uut.alu_zero) || (uut.is_bne && !uut.alu_zero))
                 ? (uut.pc_to_imem + 8'd1 + {{2{current_instruction[5]}}, current_instruction[5:0]})
-                : (uut.pc_to_imem + 8'd1))
+                : (uut.pc_to_imem + 8'd1)))
         );
     end
 
@@ -62,31 +65,45 @@ module tb_cpu;
             current_instruction
         );
 
-        // BNE loop simulation (loaded from tests/program.hex by imem).
-        // Before releasing reset, initialize registers needed by the loop.
-        uut.regfile_inst.regs[7] = 8'd1; // The increment value
-        uut.regfile_inst.regs[2] = 8'd5; // The target value
-        loop_passed = 1'b0;
+        // Program validation (loaded from tests/program.hex by imem).
+        // Seed one source register so arithmetic/logical results are observable.
+        // program.hex executes:
+        //   R2 = R1 + R1
+        //   R3 = R1 + R1
+        //   R2 = R3 - R3
+        //   R4 = R3 & R3
+        //   R5 = R1 | R1
+        //   HALT
+        uut.regfile_inst.regs[1] = 8'd1;
+        program_passed = 1'b0;
 
         // Hold reset for 20 ns, then release.
         #20;
         rst = 1'b0;
 
-        // Run long enough to cover all 5 loop iterations.
-        #500;
+        // Run long enough to execute the short arithmetic program and HALT.
+        #200;
 
-        if (loop_passed)
-            $display("PASS: BNE loop reached HALT with R1=5.");
+        if (program_passed)
+            $display("PASS: program.hex reached HALT with expected register values.");
         else
-            $display("FAIL: loop did not reach expected HALT state within #500. Final PC=%0d R1=%0d",
-                     uut.pc_to_imem, uut.regfile_inst.regs[1]);
+            $display("FAIL: program.hex did not reach expected HALT/result state within #200. Final PC=%0d R2=%0d R3=%0d R4=%0d R5=%0d",
+                     uut.pc_to_imem,
+                     uut.regfile_inst.regs[2],
+                     uut.regfile_inst.regs[3],
+                     uut.regfile_inst.regs[4],
+                     uut.regfile_inst.regs[5]);
         $finish;
     end
 
-    // Capture successful loop completion at runtime.
+    // Capture successful program completion at runtime.
     always @(posedge clk) begin
-        if (!rst && uut.pc_to_imem == 8'd3 && current_instruction == 16'h0000 && uut.regfile_inst.regs[1] == 8'd5)
-            loop_passed <= 1'b1;
+        if (!rst && current_instruction == 16'h0000 &&
+            uut.regfile_inst.regs[2] == 8'd0 &&
+            uut.regfile_inst.regs[3] == 8'd2 &&
+            uut.regfile_inst.regs[4] == 8'd2 &&
+            uut.regfile_inst.regs[5] == 8'd1)
+            program_passed <= 1'b1;
     end
 
 endmodule

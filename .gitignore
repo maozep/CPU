@@ -1,5 +1,4 @@
 # --- Icarus Verilog outputs ---
-# Compiled binaries, logs and simulation executables
 *_sim
 *.vvp
 *.out
@@ -7,14 +6,12 @@ sim_*
 vvp_out.txt
 
 # --- GTKWave files ---
-# Waveform data files can be very heavy, we don't want them in Git
 *.vcd
 *.gtkw
 *.lxt
 *.lxt2
 
 # --- IDE & Editor files ---
-# Cursor / VS Code settings and workspace files
 .vscode/
 .cursor/
 *.code-workspace
@@ -26,7 +23,6 @@ vvp_out.txt
 Thumbs.db
 desktop.ini
 
-# --- Python / Logic tools (Optional) ---
-# If you use scripts to generate your .hex files
+# --- Python / Logic tools ---
 __pycache__/
 *.pyc

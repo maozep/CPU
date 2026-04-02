@@ -11,6 +11,7 @@ module tb_control_unit;
     wire [2:0]  alu_op;
     wire         is_branch;
     wire         is_bne;
+    wire         is_halt;
 
     control_unit dut (
         .instr     (instr),
@@ -21,7 +22,8 @@ module tb_control_unit;
         .reg_write (reg_write),
         .alu_op    (alu_op),
         .is_branch (is_branch),
-        .is_bne    (is_bne)
+        .is_bne    (is_bne),
+        .is_halt   (is_halt)
     );
 
     integer errors;
@@ -31,6 +33,16 @@ module tb_control_unit;
         $dumpvars(0, tb_control_unit);
 
         errors = 0;
+
+        // HALT scenario: opcode=0 => is_halt=1, no writeback.
+        instr = 16'h0000;
+        #1;
+        $display("HALT instr=0x%04h opcode=0x%1h reg_write=%b alu_op=0x%1h is_halt=%b",
+            instr, opcode, reg_write, alu_op, is_halt);
+        if (is_halt !== 1'b1 || reg_write !== 1'b0) begin
+            $display("FAIL: HALT control mismatch");
+            errors = errors + 1;
+        end
 
         // ADD scenario: opcode=4'h1 => ADD => reg_write=1, alu_op=3'b000
         // Field layout aligned to root `program.hex`:

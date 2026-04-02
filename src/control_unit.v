@@ -10,13 +10,15 @@ module control_unit (
     output reg         reg_write,
     output reg  [2:0]  alu_op,
     output wire        is_branch,
-    output wire        is_bne
+    output wire        is_bne,
+    output wire        is_halt
 );
 
     parameter BNE = 4'h6;
 
     assign is_branch = (opcode == 4'h5);
     assign is_bne    = (opcode == BNE);
+    assign is_halt   = (opcode == 4'h0);
 
     always @* begin
         // Default decode (R-type):
@@ -31,6 +33,10 @@ module control_unit (
         alu_op    = 3'b000;
 
         case (opcode)
+            4'h0: begin // HALT
+                reg_write = 1'b0;
+                alu_op    = 3'b000;
+            end
             4'h1: begin // ADD
                 reg_write = 1'b1;
                 alu_op    = 3'b000;

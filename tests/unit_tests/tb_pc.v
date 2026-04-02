@@ -3,6 +3,7 @@
 module tb_pc;
     reg        clk;
     reg        reset;
+    reg        halt;
     reg        is_branch;
     reg        is_bne;
     reg        zero;
@@ -12,6 +13,7 @@ module tb_pc;
     pc dut (
         .clk           (clk),
         .reset         (reset),
+        .halt          (halt),
         .is_branch     (is_branch),
         .is_bne        (is_bne),
         .zero          (zero),
@@ -26,8 +28,8 @@ module tb_pc;
 
     always @(posedge clk) begin
         #0.1;
-        $display("time=%0t  reset=%b  is_branch=%b  is_bne=%b  zero=%b  off=%0d  pc=%0d",
-            $time, reset, is_branch, is_bne, zero, $signed({{2{branch_offset[5]}}, branch_offset}), pc_out);
+        $display("time=%0t  reset=%b  halt=%b  is_branch=%b  is_bne=%b  zero=%b  off=%0d  pc=%0d",
+            $time, reset, halt, is_branch, is_bne, zero, $signed({{2{branch_offset[5]}}, branch_offset}), pc_out);
     end
 
     initial begin
@@ -36,6 +38,7 @@ module tb_pc;
 
         is_branch     = 1'b0;
         is_bne        = 1'b0;
+        halt          = 1'b0;
         zero          = 1'b0;
         branch_offset = 6'd0;
 
@@ -84,6 +87,31 @@ module tb_pc;
             $display("FAIL BEQ: expected pc=8, got %0d", pc_out);
         end else begin
             $display("PASS BEQ: branch when zero");
+        end
+
+        // HALT behavior: PC must remain constant while halt is asserted.
+        @(negedge clk);
+        halt          = 1'b1;
+        is_branch     = 1'b0;
+        is_bne        = 1'b0;
+        zero          = 1'b0;
+        branch_offset = 6'd0;
+        @(posedge clk);
+        #0.1;
+        if (pc_out !== 8'd8) begin
+            $display("FAIL HALT-freeze: expected pc=8, got %0d", pc_out);
+        end else begin
+            $display("PASS HALT-freeze: PC held constant under halt");
+        end
+
+        @(negedge clk);
+        halt = 1'b0;
+        @(posedge clk);
+        #0.1;
+        if (pc_out !== 8'd9) begin
+            $display("FAIL HALT-release: expected pc=9, got %0d", pc_out);
+        end else begin
+            $display("PASS HALT-release: PC resumed increment after halt deassert");
         end
 
         $display("Simulation complete.");

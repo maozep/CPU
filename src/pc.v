@@ -1,6 +1,7 @@
 module pc (
     input  wire       clk,
     input  wire       reset,
+    input  wire       halt,
     input  wire       is_branch,
     input  wire       is_bne,
     input  wire       zero,
@@ -17,6 +18,8 @@ module pc (
     always @(posedge clk or posedge reset) begin
         if (reset)
             pc_out <= 8'd0;
+        else if (halt)
+            pc_out <= pc_out;
         else if (branch_taken)
             pc_out <= pc_out + 8'd1 + {{2{branch_offset[5]}}, branch_offset};
         else

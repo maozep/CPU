@@ -1,62 +1,116 @@
-# 8-bit RISC Processor Design (Verilog)
+# Simple 8-bit CPU (Verilog)
 
-This project presents the design, implementation, and verification of an 8-bit RISC (Reduced Instruction Set Computer) processor using the Verilog Hardware Description Language (HDL). The project is built using a modular, top-down design approach, where each component is developed, tested, and verified independently (Unit Testing) prior to system-level integration.
+This repository implements and verifies a simple 8-bit CPU with a 16-bit instruction format.
+The design follows a modular RTL approach, with unit tests for each block and integration/ISA tests
+for end-to-end behavior.
 
-## 🚀 Current Status
-The project has reached a major milestone: **Advanced Control Flow Support**. The processor successfully executes complex programs involving conditional branching and loops loaded via `program.hex`.
+## Current Status
 
-We have verified the complete **Fetch-Decode-Execute** cycle, including support for **Signed Offsets**, allowing the processor to perform backward jumps and execute repetitive logic (loops).
+Implemented and verified:
 
-### Implemented & Verified Components:
-* **Full CPU Integration**: Successfully wired all sub-modules into a cohesive processing unit.
-* **Control Flow & Branching**: Implemented `BEQ` and **`BNE`** with **Sign Extension** for 6-bit offsets.
-* **Multi-Cycle Execution**: Verified sequences of instructions with data dependencies and jumps.
-* **Control Unit**: Decodes 16-bit instructions into specific control signals for the ALU, Register File, and PC.
-* **ALU (Arithmetic Logic Unit)**: Executes arithmetic (ADD, SUB) and logical (AND, OR) operations with a `Zero` flag.
-* **Register File**: Supporting asynchronous dual-read and synchronous single-write operations.
-* **Instruction Fetch Path**: Integrated **PC** with branch logic and **IMEM** for automated flow.
+- ALU operations: ADD, SUB, AND, OR
+- Register file: 8x8, dual asynchronous read, single synchronous write, R0 hard-wired to zero
+- Branching: BEQ and BNE with signed 6-bit offset
+- Real HALT behavior: PC freezes when HALT is decoded
+- Full fetch-decode-execute integration in top-level CPU
 
-## ✅ Verification Results
-The processor's logic has been rigorously verified through behavioral simulation using **Icarus Verilog** and **GTKWave**.
+## ISA Summary
 
-### System Integration Test: Accumulation Loop (1 to 5)
-The latest integration run confirmed successful execution of an **Arithmetic Accumulation Loop**:
-* **Algorithm:** The processor calculates the sum of integers from 1 to 5 (1+2+3+4+5=15).
-* **Branch Logic:** The **`BNE`** instruction correctly identifies when the counter has not yet reached the target, jumping back to the loop start.
-* **Backward Jumping:** Verified that the **Signed Offset** correctly recalculated the PC to jump backward (e.g., PC 4 -> PC 2).
+Datapath width: 8-bit  
+Instruction width: 16-bit
 
-#### Waveform Analysis:
-- **T=20ns:** Reset phase completed.
-- **T=25ns-300ns:** Successive loop iterations, updating the sum in R3.
-- **T=310ns:** Target reached, `BNE` condition fails (values are equal), and the processor reaches the `HALT` state.
-- **Final Result:** Register R3 contains `0x0F` (15).
+R-type format:
 
-## 🛠️ Instruction Set Architecture (ISA)
-The processor utilizes a **16-bit instruction width** to support a rich set of operations while maintaining an **8-bit datapath**.
+```
+[15:12] opcode | [11:9] rd | [8:6] rs1 | [5:3] rs2 | [2:0] reserved
+```
 
-**R-Type Format:** `[15:12] Opcode | [11:9] Rd | [8:6] Rs1 | [5:3] Rs2 | [2:0] Reserved`  
-**Branch Format:** `[15:12] Opcode | [11:9] Rs1 | [8:6] Rs2 | [5:0] Signed Offset`
+Branch format:
 
-| Opcode | Mnemonic | Operation | Description | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| `4'h1` | **ADD** | `Rd = Rs1 + Rs2` | Arithmetic Addition | **Verified** |
-| `4'h2` | **SUB** | `Rd = Rs1 - Rs2` | Arithmetic Subtraction | **Verified** |
-| `4'h3` | **AND** | `Rd = Rs1 & Rs2` | Bitwise Logical AND | **Verified** |
-| `4'h4` | **OR** | `Rd = Rs1 \| Rs2` | Bitwise Logical OR | **Verified** |
-| `4'h5` | **BEQ** | `if(Rs1==Rs2) PC+=1+Imm` | Branch if Equal (Signed) | **Verified** |
-| `4'h6` | **BNE** | `if(Rs1!=Rs2) PC+=1+Imm` | Branch if Not Equal (Signed) | **Verified** |
+```
+[15:12] opcode | [11:9] rs1 | [8:6] rs2 | [5:0] signed offset
+```
 
-## 📂 Project Structure
+Supported opcodes:
+
+| Opcode | Mnemonic | Behavior |
+| --- | --- | --- |
+| `4'h0` | HALT | Stop PC advance (freeze at current instruction address) |
+| `4'h1` | ADD | `rd = rs1 + rs2` |
+| `4'h2` | SUB | `rd = rs1 - rs2` |
+| `4'h3` | AND | `rd = rs1 & rs2` |
+| `4'h4` | OR | `rd = rs1 \| rs2` |
+| `4'h5` | BEQ | if equal, `PC = PC + 1 + offset` |
+| `4'h6` | BNE | if not equal, `PC = PC + 1 + offset` |
+
+## Project Structure
+
 ```text
 .
-├── src/                # Hardware Design Source Files (RTL)
-│   ├── alu.v           # ALU with Zero flag support
-│   ├── regfile.v       # 8x8-bit Register File
-│   ├── pc.v            # Program Counter with Sign-Extended Branching
-│   ├── imem.v          # Instruction Memory
-│   ├── control_unit.v  # Instruction Decoder
-│   └── cpu.v           # Top-Level System Integration
-├── tests/              # Verification Environments (Testbenches)
-│   ├── tb_cpu.v        # Full system loop and branch integration test
-│   └── program.hex     # Machine code file loaded during simulation
+├── src/
+│   ├── alu.v
+│   ├── control_unit.v
+│   ├── cpu.v
+│   ├── imem.v
+│   ├── pc.v
+│   └── regfile.v
+├── tests/
+│   ├── program.hex
+│   ├── isa_tests/
+│   │   ├── program_simple_com.hex
+│   │   └── tb_simple_com.v
+│   └── unit_tests/
+│       ├── tb_alu.v
+│       ├── tb_control_unit.v
+│       ├── tb_cpu.v
+│       ├── tb_imem.v
+│       ├── tb_pc.v
+│       └── tb_regfile.v
+├── sim/
+├── waves/
 └── README.md
+```
+
+## Verification
+
+All current testbenches pass in Icarus Verilog (`iverilog` + `vvp`).
+
+Unit tests:
+
+- `tests/unit_tests/tb_alu.v`
+- `tests/unit_tests/tb_control_unit.v`
+- `tests/unit_tests/tb_pc.v`
+- `tests/unit_tests/tb_regfile.v`
+- `tests/unit_tests/tb_imem.v`
+- `tests/unit_tests/tb_cpu.v`
+
+ISA test:
+
+- `tests/isa_tests/tb_simple_com.v`
+
+## Quick Run Commands
+
+Run from repository root.
+
+Example: CPU integration test
+
+```bash
+iverilog -o sim/cpu_sim tests/unit_tests/tb_cpu.v src/cpu.v src/pc.v src/imem.v src/control_unit.v src/regfile.v src/alu.v
+vvp sim/cpu_sim
+```
+
+Example: ISA test
+
+```bash
+iverilog -o sim/sim_cpu tests/isa_tests/tb_simple_com.v src/cpu.v src/pc.v src/imem.v src/control_unit.v src/regfile.v src/alu.v
+vvp sim/sim_cpu
+```
+
+## Notes
+
+- `imem.v` initializes the full ROM to zero before `$readmemh`, so short HEX programs are safe.
+- You may still see a `$readmemh` warning about "not enough words" when loading short files into a 256-word ROM. This is expected and non-fatal.
+
+## Next Planned Step
+
+Build an assembler tool (Assembly -> HEX) to replace manual hex editing and support labels for branch targets.
