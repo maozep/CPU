@@ -13,6 +13,7 @@ Implemented and verified:
 - Branching: BEQ and BNE with signed 6-bit offset
 - Real HALT behavior: PC freezes when HALT is decoded
 - Full fetch-decode-execute integration in top-level CPU
+- Assembler tool: Assembly -> HEX with labels and signed branch offset resolution
 
 ## ISA Summary
 
@@ -55,6 +56,9 @@ Supported opcodes:
 │   ├── pc.v
 │   └── regfile.v
 ├── tests/
+│   ├── asm/
+│   │   ├── program_bne_loop.asm
+│   │   └── program_simple_com.asm
 │   ├── program.hex
 │   ├── isa_tests/
 │   │   ├── program_simple_com.hex
@@ -66,6 +70,9 @@ Supported opcodes:
 │       ├── tb_imem.v
 │       ├── tb_pc.v
 │       └── tb_regfile.v
+├── tools/
+│   └── tools/
+│       └── assembler.py
 ├── sim/
 ├── waves/
 └── README.md
@@ -88,6 +95,28 @@ ISA test:
 
 - `tests/isa_tests/tb_simple_com.v`
 
+## Assembler
+
+The project now includes an assembler implementation in `tools/tools/assembler.py`.
+
+Supported mnemonics:
+
+- `HALT`
+- `ADD rd, rs1, rs2`
+- `SUB rd, rs1, rs2`
+- `AND rd, rs1, rs2`
+- `OR rd, rs1, rs2`
+- `BEQ rs1, rs2, label_or_offset`
+- `BNE rs1, rs2, label_or_offset`
+
+Assembler features:
+
+- Two-pass parsing (label collection + encoding)
+- Label support (`loop:`)
+- Signed branch offset calculation for 6-bit branch immediate
+- Input validation with source line errors (bad registers, unknown labels, offset out of range)
+- Optional listing output (PC/HEX/source)
+
 ## Quick Run Commands
 
 Run from repository root.
@@ -106,11 +135,26 @@ iverilog -o sim/sim_cpu tests/isa_tests/tb_simple_com.v src/cpu.v src/pc.v src/i
 vvp sim/sim_cpu
 ```
 
+Example: assemble an ISA smoke program
+
+```bash
+python tools/tools/assembler.py tests/asm/program_simple_com.asm -o tests/isa_tests/program_simple_com.generated.hex --listing sim/program_simple_com.lst
+```
+
+Example: assemble a loop/branch program with labels
+
+```bash
+python tools/tools/assembler.py tests/asm/program_bne_loop.asm -o tests/program.generated.hex --listing sim/program_bne_loop.lst
+```
+
+Typical flow:
+
+1. Write or edit an `.asm` file under `tests/asm/`
+2. Assemble to `.hex`
+3. Point the relevant testbench/IMEM load file to the generated hex
+4. Run simulation with `iverilog` + `vvp`
+
 ## Notes
 
 - `imem.v` initializes the full ROM to zero before `$readmemh`, so short HEX programs are safe.
 - You may still see a `$readmemh` warning about "not enough words" when loading short files into a 256-word ROM. This is expected and non-fatal.
-
-## Next Planned Step
-
-Build an assembler tool (Assembly -> HEX) to replace manual hex editing and support labels for branch targets.
