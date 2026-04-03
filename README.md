@@ -160,6 +160,24 @@ Typical flow:
 2. Run `python tools/tools/assemble_all.py`
 3. Run simulation with `iverilog` + `vvp`
 
+## Behavioral Simulator (Golden Model)
+
+A C++/Python behavioral simulator is included to verify ISA correctness against your Verilog implementation.
+This "Golden Model" executes the same HEX files as the RTL and shows register state after each instruction.
+
+**Quick start:**
+
+```bash
+# Python version (recommended - works immediately)
+python tools/simulator.py tests/program.hex
+
+# C++ version (if g++ is installed)
+g++ -o tools/sim_cpu tools/simulator.cpp -std=c++11
+./tools/sim_cpu tests/program.hex
+```
+
+See [SIMULATOR.md](SIMULATOR.md) for detailed documentation, ISA reference, and verification techniques.
+
 ## Notes
 
 - `imem.v` initializes the full ROM to zero before `$readmemh`, so short HEX programs are safe.
