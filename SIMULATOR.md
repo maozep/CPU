@@ -17,6 +17,9 @@ Both **C++** and **Python** versions are provided:
 - ✅ Register state snapshot after each instruction  
 - ✅ Proper sign-extension for 6-bit branch offsets
 - ✅ PC wrapping at 256-word boundary
+- ✅ Demo mode (`--demo`) to seed non-zero register values quickly
+- ✅ Built-in self-test mode (`--self-test`) for critical ISA edge cases
+- ✅ Max-steps guard for loop-safety validation
 
 ## ISA Reference
 
@@ -56,6 +59,10 @@ python simulator.py <hex_file>
 # Example
 python simulator.py tests/program.hex
 python simulator.py tests/isa_tests/program_simple_com.hex
+
+# Demo + self-tests
+python simulator.py tests/program.hex --demo
+python simulator.py --self-test
 ```
 
 ### C++ Simulator (If g++ is installed)
@@ -69,7 +76,29 @@ g++ -o sim_cpu simulator.cpp -std=c++11
 
 # Example
 ./sim_cpu tests/program.hex
+
+# Demo + self-tests
+./sim_cpu tests/program.hex --demo
+./sim_cpu --self-test
 ```
+
+### Windows (MSYS2) One-Command Flow
+
+```powershell
+C:\msys64\usr\bin\bash.exe -lc 'export PATH=/ucrt64/bin:$PATH; cd /c/Users/LENOVO/Desktop/cursor/Simple-8bit-CPU-Verilog; g++ tools/simulator.cpp -o tools/sim_cpu.exe -std=c++11 && ./tools/sim_cpu.exe tests/program.hex --demo'
+```
+
+## Validation Coverage
+
+Latest validated checks include:
+
+1. Python simulator self-tests (`--self-test`): 4/4 pass
+2. C++ simulator self-tests (`--self-test`): 4/4 pass
+3. Verilog PC critical edge testbench (`tests/unit_tests/tb_pc.v`) now covers:
+  - BEQ with max positive offset `+31`
+  - BEQ with min negative offset `-32`
+  - 8-bit PC wrap-around after large positive branches
+  - HALT freeze/release behavior after branch sequences
 
 ## Output Format
 

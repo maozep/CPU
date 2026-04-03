@@ -6,6 +6,7 @@
 # Test the simulator immediately (Python)
 cd Simple-8bit-CPU-Verilog
 python tools/simulator.py tests/program.hex
+python tools/simulator.py tests/program.hex --demo
 ```
 
 Expected output: Shows instruction trace, ends with `HALT -- Execution stopped` and final register state.
@@ -32,6 +33,12 @@ python tools/simulator.py tests/program.hex
 python tools/simulator.py tests/isa_tests/program_simple_com.hex
 ```
 
+### 2.5 Run Built-in Simulator Self-Tests
+```bash
+python tools/simulator.py --self-test
+./tools/sim_cpu --self-test
+```
+
 ### 3. Verify Both Programs Simultaneously
 ```bash
 python tools/verify_simulator.py tests/program.hex tests/isa_tests/program_simple_com.hex
@@ -41,6 +48,12 @@ python tools/verify_simulator.py tests/program.hex tests/isa_tests/program_simpl
 ```bash
 g++ -o tools/sim_cpu tools/simulator.cpp -std=c++11
 ./tools/sim_cpu tests/program.hex
+./tools/sim_cpu tests/program.hex --demo
+```
+
+### 5. Windows (MSYS2) One-Command Compile + Run
+```powershell
+C:\msys64\usr\bin\bash.exe -lc 'export PATH=/ucrt64/bin:$PATH; cd /c/Users/LENOVO/Desktop/cursor/Simple-8bit-CPU-Verilog; g++ tools/simulator.cpp -o tools/sim_cpu.exe -std=c++11 && ./tools/sim_cpu.exe tests/program.hex --demo'
 ```
 
 ## 📊 Understanding Simulator Output
@@ -171,6 +184,8 @@ For detailed information, see:
 ✅ Works immediately (Python) or compiles with g++ (C++)  
 ✅ No external dependencies  
 ✅ Production-ready error handling  
+✅ Built-in self-tests in Python and C++ (`--self-test`)  
+✅ Demo mode in Python and C++ (`--demo`) for non-zero register activity  
 
 ## 🎯 Next Steps
 

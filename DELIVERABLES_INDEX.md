@@ -1,5 +1,17 @@
 # 📋 Behavioral Simulator - Complete Deliverables Index
 
+## Update (Apr 2026)
+
+This index now includes the latest validation status:
+
+- Python simulator: supports `--self-test` and `--demo`
+- C++ simulator: supports `--self-test` and `--demo`
+- Verilog branch edge cases expanded in `tests/unit_tests/tb_pc.v`
+- Validation status:
+  - Python self-test `4/4` pass
+  - C++ self-test `4/4` pass
+  - e2e regression `7/7` pass
+
 ## 🎯 Executive Summary
 
 **Status**: ✅ **COMPLETE & TESTED**
@@ -230,7 +242,7 @@ g++ -o tools/sim_cpu tools/simulator.cpp -std=c++11
 | Instruction tracing | ✅ | Complete | ✅ |
 | Error handling | ✅ | Complete | ✅ |
 | Python version | ✅ | Complete | ✅ |
-| C++ version | ✅ | Complete | ⏳ Untested (no g++ on system) |
+| C++ version | ✅ | Complete | ✅ Tested (compile + run + self-test) |
 | Verification tool | ✅ | Complete | ✅ |
 
 ---

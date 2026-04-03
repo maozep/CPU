@@ -1,5 +1,17 @@
 # 🎉 CPU Behavioral Simulator - Complete Delivery Package
 
+## Update (Apr 2026)
+
+Post-delivery validation and coverage updates are now included:
+
+- Python simulator supports `--self-test` and `--demo`
+- C++ simulator supports `--self-test` and `--demo`
+- Verilog branch edge-case coverage was expanded in `tests/unit_tests/tb_pc.v`
+- All validations currently pass:
+   - Python self-test: `4/4`
+   - C++ self-test: `4/4`
+   - Project e2e regression: `7/7`
+
 ## Summary
 
 You now have a **complete, production-ready behavioral simulator** for your 16-bit RISC CPU. This "Golden Model" executes the same HEX files as your Verilog RTL implementation, enabling rigorous verification of logical correctness.
@@ -338,7 +350,7 @@ python tools/verify_simulator.py tests/program.hex
 Before using in production:
 
 - [x] Python simulator runs successfully
-- [x] C++ source compiles with g++ -std=c++11 (untested but ready)
+- [x] C++ source compiles and runs with g++ -std=c++11
 - [x] Handles test HEX files correctly
 - [x] Produces detailed instruction trace
 - [x] Identifies HALT and stops execution

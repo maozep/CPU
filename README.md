@@ -170,11 +170,28 @@ This "Golden Model" executes the same HEX files as the RTL and shows register st
 ```bash
 # Python version (recommended - works immediately)
 python tools/simulator.py tests/program.hex
+python tools/simulator.py tests/program.hex --demo
+python tools/simulator.py --self-test
 
 # C++ version (if g++ is installed)
 g++ -o tools/sim_cpu tools/simulator.cpp -std=c++11
 ./tools/sim_cpu tests/program.hex
+./tools/sim_cpu tests/program.hex --demo
+./tools/sim_cpu --self-test
 ```
+
+Windows (MSYS2 one-command compile+run):
+
+```powershell
+C:\msys64\usr\bin\bash.exe -lc 'export PATH=/ucrt64/bin:$PATH; cd /c/Users/LENOVO/Desktop/cursor/Simple-8bit-CPU-Verilog; g++ tools/simulator.cpp -o tools/sim_cpu.exe -std=c++11 && ./tools/sim_cpu.exe tests/program.hex --demo'
+```
+
+Latest validation highlights:
+
+- Python simulator built-in self-tests: `4/4` passed (`--self-test`)
+- C++ simulator built-in self-tests: `4/4` passed (`--self-test`)
+- Verilog PC edge tests in `tests/unit_tests/tb_pc.v` include `+31`, `-32`, and 8-bit wrap-around branch behavior
+- Full regression (`tools/tools/e2e_run.py`) passes after updates
 
 See [SIMULATOR.md](SIMULATOR.md) for detailed documentation, ISA reference, and verification techniques.
 

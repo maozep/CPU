@@ -1,5 +1,21 @@
 # CPU Behavioral Simulator - Implementation Complete ✓
 
+## Update (Apr 2026)
+
+The documentation and validation status were updated after adding deeper checks:
+
+- Python simulator now supports `--self-test` and `--demo`
+- C++ simulator now supports `--self-test` and `--demo`
+- Verilog PC testbench (`tests/unit_tests/tb_pc.v`) now includes critical edge cases:
+  - max branch offset `+31`
+  - min branch offset `-32`
+  - 8-bit wrap-around branch behavior
+  - HALT freeze/release checks after branch sequences
+- Validated results:
+  - Python self-test: `4/4` pass
+  - C++ self-test: `4/4` pass
+  - Full e2e regression: `7/7` pass
+
 ## 📦 What You've Received
 
 A complete behavioral/architectural simulator for your 16-bit RISC CPU written in both **C++** and **Python**. Both versions are "Golden Models" that can execute your HEX files and verify correctness against your Verilog RTL.

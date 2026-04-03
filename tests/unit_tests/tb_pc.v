@@ -57,7 +57,7 @@ module tb_pc;
         @(posedge clk);
         #0.1;
         if (pc_out !== 8'd4) begin
-            $display("FAIL BNE-taken: expected pc=4, got %0d", pc_out);
+            $display("FAIL: BNE-taken expected pc=4, got %0d", pc_out);
         end else begin
             $display("PASS BNE-taken: PC branched to PC+1+offset");
         end
@@ -70,7 +70,7 @@ module tb_pc;
         @(posedge clk);
         #0.1;
         if (pc_out !== 8'd5) begin
-            $display("FAIL BNE-not-taken: expected pc=5, got %0d", pc_out);
+            $display("FAIL: BNE-not-taken expected pc=5, got %0d", pc_out);
         end else begin
             $display("PASS BNE-not-taken: no branch when zero");
         end
@@ -84,9 +84,67 @@ module tb_pc;
         @(posedge clk);
         #0.1;
         if (pc_out !== 8'd8) begin
-            $display("FAIL BEQ: expected pc=8, got %0d", pc_out);
+            $display("FAIL: BEQ expected pc=8, got %0d", pc_out);
         end else begin
             $display("PASS BEQ: branch when zero");
+        end
+
+        // Critical edge #1: maximum positive offset (+31): 8 -> 40
+        @(negedge clk);
+        is_branch     = 1'b1;
+        is_bne        = 1'b0;
+        zero          = 1'b1;
+        branch_offset = 6'b01_1111; // +31
+        @(posedge clk);
+        #0.1;
+        if (pc_out !== 8'd40) begin
+            $display("FAIL: BEQ +31 expected pc=40, got %0d", pc_out);
+        end else begin
+            $display("PASS BEQ +31: max positive offset works");
+        end
+
+        // Critical edge #2: minimum negative offset (-32): 40 -> 9
+        @(negedge clk);
+        is_branch     = 1'b1;
+        is_bne        = 1'b0;
+        zero          = 1'b1;
+        branch_offset = 6'b10_0000; // -32
+        @(posedge clk);
+        #0.1;
+        if (pc_out !== 8'd9) begin
+            $display("FAIL: BEQ -32 expected pc=9, got %0d", pc_out);
+        end else begin
+            $display("PASS BEQ -32: min negative offset works");
+        end
+
+        // Drive PC near wrap boundary using +31 from 9 repeatedly.
+        repeat (7) begin
+            @(negedge clk);
+            is_branch     = 1'b1;
+            is_bne        = 1'b0;
+            zero          = 1'b1;
+            branch_offset = 6'b01_1111; // +31
+            @(posedge clk);
+        end
+        #0.1;
+        if (pc_out !== 8'd233) begin
+            $display("FAIL: pre-wrap setup expected pc=233, got %0d", pc_out);
+        end else begin
+            $display("PASS pre-wrap setup: PC prepared at 233");
+        end
+
+        // Critical edge #3: wrap-around with +31: 233 -> (233+1+31)=9
+        @(negedge clk);
+        is_branch     = 1'b1;
+        is_bne        = 1'b0;
+        zero          = 1'b1;
+        branch_offset = 6'b01_1111; // +31
+        @(posedge clk);
+        #0.1;
+        if (pc_out !== 8'd9) begin
+            $display("FAIL: BEQ wrap +31 expected pc=9, got %0d", pc_out);
+        end else begin
+            $display("PASS BEQ wrap +31: 8-bit wrap-around verified");
         end
 
         // HALT behavior: PC must remain constant while halt is asserted.
@@ -98,8 +156,8 @@ module tb_pc;
         branch_offset = 6'd0;
         @(posedge clk);
         #0.1;
-        if (pc_out !== 8'd8) begin
-            $display("FAIL HALT-freeze: expected pc=8, got %0d", pc_out);
+        if (pc_out !== 8'd9) begin
+            $display("FAIL: HALT-freeze expected pc=9, got %0d", pc_out);
         end else begin
             $display("PASS HALT-freeze: PC held constant under halt");
         end
@@ -108,8 +166,8 @@ module tb_pc;
         halt = 1'b0;
         @(posedge clk);
         #0.1;
-        if (pc_out !== 8'd9) begin
-            $display("FAIL HALT-release: expected pc=9, got %0d", pc_out);
+        if (pc_out !== 8'd10) begin
+            $display("FAIL: HALT-release expected pc=10, got %0d", pc_out);
         end else begin
             $display("PASS HALT-release: PC resumed increment after halt deassert");
         end
