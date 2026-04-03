@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <string>
 #include <cmath>
+#include <functional>
+#include <vector>
 
 using namespace std;
 
@@ -16,11 +18,58 @@ private:
     uint16_t imem[256] = {0};        // Instruction Memory, 256 x 16-bit
     uint8_t pc = 0;                  // Program Counter, 8-bit
     bool halted = false;             // HALT flag
+    bool trace_enabled = true;       // Verbose trace print flag
     
     // Statistics
     uint32_t instruction_count = 0;
 
 public:
+    void reset() {
+        for (int i = 0; i < 8; i++) {
+            registers[i] = 0;
+        }
+        for (int i = 0; i < 256; i++) {
+            imem[i] = 0;
+        }
+        pc = 0;
+        halted = false;
+        instruction_count = 0;
+    }
+
+    void set_trace(bool enable) {
+        trace_enabled = enable;
+    }
+
+    bool load_program(const vector<uint16_t>& words) {
+        reset();
+        size_t count = words.size();
+        if (count > 256) {
+            count = 256;
+        }
+        for (size_t i = 0; i < count; i++) {
+            imem[i] = words[i];
+        }
+        return true;
+    }
+
+    void set_register(int idx, uint8_t value) {
+        if (idx < 0 || idx >= 8) {
+            return;
+        }
+        if (idx == 0) {
+            return;
+        }
+        registers[idx] = value;
+    }
+
+    // Seed registers with a visible demo pattern without changing the
+    // architectural reset behavior used by default.
+    void seed_demo_registers() {
+        for (int i = 1; i < 8; i++) {
+            registers[i] = (uint8_t)i;
+        }
+    }
+
     // Helper: Extract bits [high:low] from a 16-bit value
     inline uint16_t extract_bits(uint16_t value, int high, int low) const {
         int width = high - low + 1;
@@ -38,6 +87,8 @@ public:
     
     // Load HEX file into instruction memory
     bool load_hex(const string& filename) {
+        reset();
+
         ifstream file(filename);
         if (!file.is_open()) {
             cerr << "Error: Cannot open file " << filename << endl;
@@ -72,7 +123,9 @@ public:
         }
         
         file.close();
-        cout << "[LOADER] Loaded " << address << " instructions from " << filename << endl;
+        if (trace_enabled) {
+            cout << "[LOADER] Loaded " << address << " instructions from " << filename << endl;
+        }
         return true;
     }
     
@@ -85,9 +138,11 @@ public:
     void execute(uint16_t instr) {
         uint16_t opcode = extract_bits(instr, 15, 12);
         
-        // Print instruction info before execution
-        cout << "[PC=" << setfill('0') << setw(2) << hex << (int)pc << " | "
-             << "Instr=0x" << setfill('0') << setw(4) << hex << instr << "]" << dec << " ";
+           // Print instruction info before execution
+           if (trace_enabled) {
+              cout << "[PC=" << setfill('0') << setw(2) << hex << (int)pc << " | "
+                  << "Instr=0x" << setfill('0') << setw(4) << hex << instr << "]" << dec << " ";
+           }
         
         switch (opcode) {
             case 0x0:  // HALT
@@ -112,7 +167,9 @@ public:
                 execute_branch(instr, false);
                 break;
             default:
-                cout << "UNKNOWN OPCODE 0x" << hex << (int)opcode << dec << endl;
+                if (trace_enabled) {
+                    cout << "UNKNOWN OPCODE 0x" << hex << (int)opcode << dec << endl;
+                }
                 break;
         }
     }
@@ -128,29 +185,39 @@ public:
         switch (op) {
             case '+':
                 result = registers[rs1] + registers[rs2];
-                cout << "ADD R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
-                     << ") + R" << (int)rs2 << "(" << (int)registers[rs2] << ") = " << (int)result;
+                if (trace_enabled) {
+                    cout << "ADD R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
+                         << ") + R" << (int)rs2 << "(" << (int)registers[rs2] << ") = " << (int)result;
+                }
                 break;
             case '-':
                 result = registers[rs1] - registers[rs2];
-                cout << "SUB R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
-                     << ") - R" << (int)rs2 << "(" << (int)registers[rs2] << ") = " << (int)result;
+                if (trace_enabled) {
+                    cout << "SUB R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
+                         << ") - R" << (int)rs2 << "(" << (int)registers[rs2] << ") = " << (int)result;
+                }
                 break;
             case '&':
                 result = registers[rs1] & registers[rs2];
-                cout << "AND R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
-                     << ") & R" << (int)rs2 << "(" << (int)registers[rs2] << ") = " << (int)result;
+                if (trace_enabled) {
+                    cout << "AND R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
+                         << ") & R" << (int)rs2 << "(" << (int)registers[rs2] << ") = " << (int)result;
+                }
                 break;
             case '|':
                 result = registers[rs1] | registers[rs2];
-                cout << "OR  R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
-                     << ") | R" << (int)rs2 << "(" << (int)registers[rs2] << ") = " << (int)result;
+                if (trace_enabled) {
+                    cout << "OR  R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
+                         << ") | R" << (int)rs2 << "(" << (int)registers[rs2] << ") = " << (int)result;
+                }
                 break;
         }
         
         registers[rd] = result;
         pc++;
-        cout << endl;
+        if (trace_enabled) {
+            cout << endl;
+        }
     }
     
     // Execute branch instruction (BEQ, BNE)
@@ -165,30 +232,42 @@ public:
         bool branch_taken = false;
         if (is_beq) {
             branch_taken = (registers[rs1] == registers[rs2]);
-            cout << "BEQ R" << (int)rs1 << "(" << (int)registers[rs1] << ") == R"
-                 << (int)rs2 << "(" << (int)registers[rs2] << ") ? ";
+            if (trace_enabled) {
+                cout << "BEQ R" << (int)rs1 << "(" << (int)registers[rs1] << ") == R"
+                     << (int)rs2 << "(" << (int)registers[rs2] << ") ? ";
+            }
         } else {
             branch_taken = (registers[rs1] != registers[rs2]);
-            cout << "BNE R" << (int)rs1 << "(" << (int)registers[rs1] << ") != R"
-                 << (int)rs2 << "(" << (int)registers[rs2] << ") ? ";
+            if (trace_enabled) {
+                cout << "BNE R" << (int)rs1 << "(" << (int)registers[rs1] << ") != R"
+                     << (int)rs2 << "(" << (int)registers[rs2] << ") ? ";
+            }
         }
         
         uint8_t next_pc = pc + 1;  // Default: no branch
         
         if (branch_taken) {
             next_pc = (next_pc + offset) & 0xFF;  // 8-bit wrap
-            cout << "YES -> PC = " << (int)(pc + 1) << " + " << (int)offset << " = " << (int)next_pc;
+            if (trace_enabled) {
+                cout << "YES -> PC = " << (int)(pc + 1) << " + " << (int)offset << " = " << (int)next_pc;
+            }
         } else {
-            cout << "NO -> PC = " << (int)next_pc;
+            if (trace_enabled) {
+                cout << "NO -> PC = " << (int)next_pc;
+            }
         }
         
         pc = next_pc;
-        cout << endl;
+        if (trace_enabled) {
+            cout << endl;
+        }
     }
     
     // Execute HALT instruction
     void execute_halt() {
-        cout << "HALT -- Execution stopped" << endl;
+        if (trace_enabled) {
+            cout << "HALT -- Execution stopped" << endl;
+        }
         halted = true;
     }
     
@@ -202,27 +281,40 @@ public:
     }
     
     // Run the complete fetch-decode-execute loop
-    void run() {
-        cout << "\n=== Starting CPU Simulation ===" << endl;
-        cout << "Initial PC: " << (int)pc << endl << endl;
+    bool run(uint32_t max_steps = 10000) {
+        if (trace_enabled) {
+            cout << "\n=== Starting CPU Simulation ===" << endl;
+            cout << "Initial PC: " << (int)pc << endl << endl;
+        }
         
-        while (!halted && pc < 256) {
+        while (!halted && pc < 256 && instruction_count < max_steps) {
             uint16_t instr = fetch();
             
-            print_registers();
+            if (trace_enabled) {
+                print_registers();
+            }
             execute(instr);
             
             instruction_count++;
         }
-        
-        cout << "\n=== Simulation Complete ===" << endl;
-        cout << "Total instructions executed: " << instruction_count << endl;
-        cout << "Final PC: " << (int)pc << endl;
-        cout << "Final Registers: ";
-        for (int i = 0; i < 8; i++) {
-            cout << "R" << i << "=" << setfill('0') << setw(2) << hex << (int)registers[i] << " ";
+
+        bool completed_by_halt = halted;
+        if (!completed_by_halt && trace_enabled) {
+            cout << "[WARN] Stopped due to max_steps=" << max_steps << endl;
         }
-        cout << dec << endl;
+        
+        if (trace_enabled) {
+            cout << "\n=== Simulation Complete ===" << endl;
+            cout << "Total instructions executed: " << instruction_count << endl;
+            cout << "Final PC: " << (int)pc << endl;
+            cout << "Final Registers: ";
+            for (int i = 0; i < 8; i++) {
+                cout << "R" << i << "=" << setfill('0') << setw(2) << hex << (int)registers[i] << " ";
+            }
+            cout << dec << endl;
+        }
+
+        return completed_by_halt;
     }
     
     // Get register value (for testing/verification)
@@ -235,12 +327,157 @@ public:
     uint8_t get_pc() const {
         return pc;
     }
+
+    bool is_halted() const {
+        return halted;
+    }
+
+    uint32_t get_instruction_count() const {
+        return instruction_count;
+    }
 };
 
+static uint16_t encode_rtype(uint8_t opcode, uint8_t rd, uint8_t rs1, uint8_t rs2) {
+    return (uint16_t)(((opcode & 0xF) << 12) | ((rd & 0x7) << 9) | ((rs1 & 0x7) << 6) | ((rs2 & 0x7) << 3));
+}
+
+static uint16_t encode_branch(uint8_t opcode, uint8_t rs1, uint8_t rs2, int8_t offset6) {
+    return (uint16_t)(((opcode & 0xF) << 12) | ((rs1 & 0x7) << 9) | ((rs2 & 0x7) << 6) | ((uint8_t)offset6 & 0x3F));
+}
+
+static bool expect_eq_u8(const string& name, uint8_t got, uint8_t expected, string& err) {
+    if (got != expected) {
+        stringstream ss;
+        ss << name << " expected=" << (int)expected << " got=" << (int)got;
+        err = ss.str();
+        return false;
+    }
+    return true;
+}
+
+static bool expect_true(const string& name, bool cond, string& err) {
+    if (!cond) {
+        err = name;
+        return false;
+    }
+    return true;
+}
+
+static bool test_alu_sequence(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_rtype(0x1, 3, 1, 2), // R3 = R1 + R2
+        encode_rtype(0x2, 4, 3, 2), // R4 = R3 - R2
+        encode_rtype(0x3, 5, 3, 2), // R5 = R3 & R2
+        encode_rtype(0x4, 6, 4, 2), // R6 = R4 | R2
+        0x0000
+    });
+    cpu.set_register(1, 5);
+    cpu.set_register(2, 2);
+
+    bool halted = cpu.run();
+    if (!expect_true("Program should HALT", halted, err)) return false;
+    if (!expect_eq_u8("R3", cpu.get_register(3), 7, err)) return false;
+    if (!expect_eq_u8("R4", cpu.get_register(4), 5, err)) return false;
+    if (!expect_eq_u8("R5", cpu.get_register(5), 2, err)) return false;
+    if (!expect_eq_u8("R6", cpu.get_register(6), 7, err)) return false;
+    return true;
+}
+
+static bool test_beq_taken(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_branch(0x5, 1, 2, 1), // if equal, skip next instruction
+        encode_rtype(0x1, 3, 1, 1),
+        encode_rtype(0x1, 4, 1, 2),
+        0x0000
+    });
+    cpu.set_register(1, 9);
+    cpu.set_register(2, 9);
+
+    bool halted = cpu.run();
+    if (!expect_true("Program should HALT", halted, err)) return false;
+    if (!expect_eq_u8("R3 should stay unchanged (skipped)", cpu.get_register(3), 0, err)) return false;
+    if (!expect_eq_u8("R4", cpu.get_register(4), 18, err)) return false;
+    return true;
+}
+
+static bool test_bne_loop_to_zero(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_rtype(0x2, 1, 1, 7),   // R1 = R1 - R7
+        encode_branch(0x6, 1, 0, -2), // if R1 != 0, jump back to SUB
+        0x0000
+    });
+    cpu.set_register(1, 3);
+    cpu.set_register(7, 1);
+
+    bool halted = cpu.run();
+    if (!expect_true("Program should HALT", halted, err)) return false;
+    if (!expect_eq_u8("R1 should reach zero", cpu.get_register(1), 0, err)) return false;
+    if (!expect_eq_u8("PC at HALT", cpu.get_pc(), 2, err)) return false;
+    return true;
+}
+
+static bool test_max_steps_guard(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_branch(0x6, 1, 0, -1), // self-loop while R1 != 0
+        0x0000
+    });
+    cpu.set_register(1, 1);
+
+    bool halted = cpu.run(20);
+    if (!expect_true("Program should not HALT before max_steps", !halted, err)) return false;
+    if (!expect_eq_u8("PC should stay in loop", cpu.get_pc(), 0, err)) return false;
+    if (cpu.get_instruction_count() != 20) {
+        stringstream ss;
+        ss << "instruction_count expected=20 got=" << cpu.get_instruction_count();
+        err = ss.str();
+        return false;
+    }
+    return true;
+}
+
+static int run_self_tests() {
+    vector<pair<string, function<bool(string&)>>> tests = {
+        {"ALU sequence", test_alu_sequence},
+        {"BEQ taken", test_beq_taken},
+        {"BNE loop to zero", test_bne_loop_to_zero},
+        {"Max-steps guard", test_max_steps_guard}
+    };
+
+    int passed = 0;
+    cout << "[SELF-TEST] Running " << tests.size() << " simulator tests" << endl;
+
+    for (size_t i = 0; i < tests.size(); i++) {
+        string err;
+        bool ok = tests[i].second(err);
+        if (ok) {
+            passed++;
+            cout << "  [PASS] " << tests[i].first << endl;
+        } else {
+            cout << "  [FAIL] " << tests[i].first << " -- " << err << endl;
+        }
+    }
+
+    cout << "[SELF-TEST] Summary: " << passed << "/" << tests.size() << " passed" << endl;
+    return (passed == (int)tests.size()) ? 0 : 1;
+}
+
 int main(int argc, char* argv[]) {
+    if (argc >= 2 && string(argv[1]) == "--self-test") {
+        return run_self_tests();
+    }
+
     if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " <hex_file>" << endl;
-        cerr << "Example: " << argv[0] << " program.hex" << endl;
+        cerr << "Usage: " << argv[0] << " <hex_file> [--demo]" << endl;
+        cerr << "       " << argv[0] << " --self-test" << endl;
+        cerr << "Example: " << argv[0] << " program.hex --demo" << endl;
         return 1;
     }
     
@@ -249,6 +486,11 @@ int main(int argc, char* argv[]) {
     // Load HEX file
     if (!cpu.load_hex(argv[1])) {
         return 1;
+    }
+
+    if (argc >= 3 && string(argv[2]) == "--demo") {
+        cout << "[MODE] Demo register seed enabled (R1=1..R7=7)" << endl;
+        cpu.seed_demo_registers();
     }
     
     // Run simulation
