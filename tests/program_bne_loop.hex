@@ -1,0 +1,4 @@
+1200  // PC=0: ADD R1, R0, R0
+1278  // PC=1: ADD R1, R1, R7
+62BE  // PC=2: BNE R1, R2, loop
+0000  // PC=3: HALT

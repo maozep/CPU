@@ -116,6 +116,7 @@ Assembler features:
 - Signed branch offset calculation for 6-bit branch immediate
 - Input validation with source line errors (bad registers, unknown labels, offset out of range)
 - Optional listing output (PC/HEX/source)
+- Default build script that generates the exact HEX files used by tests
 
 ## Quick Run Commands
 
@@ -138,21 +139,26 @@ vvp sim/sim_cpu
 Example: assemble an ISA smoke program
 
 ```bash
-python tools/tools/assembler.py tests/asm/program_simple_com.asm -o tests/isa_tests/program_simple_com.generated.hex --listing sim/program_simple_com.lst
+python tools/tools/assembler.py tests/asm/program_simple_com.asm -o tests/isa_tests/program_simple_com.hex --listing sim/program_simple_com.lst
 ```
 
 Example: assemble a loop/branch program with labels
 
 ```bash
-python tools/tools/assembler.py tests/asm/program_bne_loop.asm -o tests/program.generated.hex --listing sim/program_bne_loop.lst
+python tools/tools/assembler.py tests/asm/program_bne_loop.asm -o tests/program_bne_loop.hex --listing sim/program_bne_loop.lst
+```
+
+Recommended: build all default HEX targets used by tests
+
+```bash
+python tools/tools/assemble_all.py
 ```
 
 Typical flow:
 
 1. Write or edit an `.asm` file under `tests/asm/`
-2. Assemble to `.hex`
-3. Point the relevant testbench/IMEM load file to the generated hex
-4. Run simulation with `iverilog` + `vvp`
+2. Run `python tools/tools/assemble_all.py`
+3. Run simulation with `iverilog` + `vvp`
 
 ## Notes
 
