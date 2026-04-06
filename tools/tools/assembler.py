@@ -34,11 +34,14 @@ OPCODES = {
 	"BEQ": 0x5,
 	"BNE": 0x6,
 	"ADDI": 0x7,
+	"LW": 0x8,
+	"SW": 0x9,
 }
 
 R_TYPE = {"ADD", "SUB", "AND", "OR"}
 BR_TYPE = {"BEQ", "BNE"}
-I_TYPE = {"ADDI"}
+I_TYPE = {"ADDI", "LW"}
+S_TYPE = {"SW"}
 
 COMMENT_MARKERS = ("//", "#", ";")
 LABEL_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -206,7 +209,7 @@ def assemble(parsed: Sequence[ParsedLine], labels: Dict[str, int]) -> List[Tuple
 			encoded.append((encode_branch(op, rs1, rs2, offset), line))
 			continue
 
-		if mnemonic in I_TYPE:  # ADDI rd, rs1, imm
+		if mnemonic in I_TYPE:  # ADDI rd, rs1, imm  /  LW rd, rs1, imm
 			if len(ops) != 3:
 				raise AssemblerError(
 					f"Line {line.source_line}: {mnemonic} expects 3 operands (rd, rs1, imm)."
@@ -215,6 +218,18 @@ def assemble(parsed: Sequence[ParsedLine], labels: Dict[str, int]) -> List[Tuple
 			rs1 = parse_register(ops[1], line.source_line)
 			imm6 = parse_int(ops[2], line.source_line)
 			encoded.append((encode_itype(op, rd, rs1, imm6), line))
+			continue
+
+		if mnemonic in S_TYPE:  # SW rs2, rs1, imm
+			if len(ops) != 3:
+				raise AssemblerError(
+					f"Line {line.source_line}: {mnemonic} expects 3 operands (rs2, rs1, imm)."
+				)
+			rs2 = parse_register(ops[0], line.source_line)
+			rs1 = parse_register(ops[1], line.source_line)
+			imm6 = parse_int(ops[2], line.source_line)
+			# SW encoding: [11:9]=rs2(data), [8:6]=rs1(base), [5:0]=imm6
+			encoded.append((encode_itype(op, rs2, rs1, imm6), line))
 			continue
 
 		raise AssemblerError(f"Line {line.source_line}: unsupported mnemonic '{mnemonic}'.")

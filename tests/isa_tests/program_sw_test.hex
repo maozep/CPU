@@ -1,0 +1,7 @@
+7219  // PC=0: ADDI R1, R0, 25    -> R1=25
+740A  // PC=1: ADDI R2, R0, 10   -> R2=10
+9200  // PC=2: SW R1, R0, 0      -> DMEM[0] = R1 = 25
+9401  // PC=3: SW R2, R0, 1      -> DMEM[1] = R2 = 10
+9280  // PC=4: SW R1, R2, 0      -> DMEM[R2+0] = DMEM[10] = 25 (reg base)
+941F  // PC=5: SW R2, R0, 31     -> DMEM[31] = R2 = 10 (max offset)
+0000  // PC=6: HALT

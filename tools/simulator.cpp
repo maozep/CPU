@@ -16,6 +16,7 @@ private:
     // State
     uint8_t registers[8] = {0};      // R0-R7, 8-bit each
     uint16_t imem[256] = {0};        // Instruction Memory, 256 x 16-bit
+    uint8_t dmem[256] = {0};         // Data Memory, 256 x 8-bit
     uint8_t pc = 0;                  // Program Counter, 8-bit
     bool halted = false;             // HALT flag
     bool trace_enabled = true;       // Verbose trace print flag
@@ -30,6 +31,7 @@ public:
         }
         for (int i = 0; i < 256; i++) {
             imem[i] = 0;
+            dmem[i] = 0;
         }
         pc = 0;
         halted = false;
@@ -169,6 +171,12 @@ public:
             case 0x7:  // ADDI
                 execute_addi(instr);
                 break;
+            case 0x8:  // LW
+                execute_lw(instr);
+                break;
+            case 0x9:  // SW
+                execute_sw(instr);
+                break;
             default:
                 if (trace_enabled) {
                     cout << "UNKNOWN OPCODE 0x" << hex << (int)opcode << dec << endl;
@@ -282,6 +290,40 @@ public:
         }
     }
     
+    // Execute LW instruction: rd = DMEM[rs1 + sign_extend(imm6)]
+    void execute_lw(uint16_t instr) {
+        uint8_t rd  = (uint8_t)extract_bits(instr, 11, 9);
+        uint8_t rs1 = (uint8_t)extract_bits(instr, 8, 6);
+        uint16_t imm6_raw = extract_bits(instr, 5, 0);
+        int16_t imm6 = sign_extend(imm6_raw, 6);
+        uint8_t addr = (uint8_t)(registers[rs1] + imm6);
+        uint8_t result = dmem[addr];
+        if (trace_enabled) {
+            cout << "LW  R" << (int)rd << " = DMEM[R" << (int)rs1
+                 << "(" << (int)registers[rs1] << ") + " << (int)imm6
+                 << "] = DMEM[" << (int)addr << "] = " << (int)result << endl;
+        }
+        registers[rd] = result;
+        pc++;
+    }
+
+    // Execute SW instruction: DMEM[rs1 + sign_extend(imm6)] = rs2
+    void execute_sw(uint16_t instr) {
+        uint8_t rs2 = (uint8_t)extract_bits(instr, 11, 9);  // data source
+        uint8_t rs1 = (uint8_t)extract_bits(instr, 8, 6);   // base address
+        uint16_t imm6_raw = extract_bits(instr, 5, 0);
+        int16_t imm6 = sign_extend(imm6_raw, 6);
+        uint8_t addr = (uint8_t)(registers[rs1] + imm6);
+        uint8_t data = registers[rs2];
+        if (trace_enabled) {
+            cout << "SW  DMEM[R" << (int)rs1 << "(" << (int)registers[rs1]
+                 << ") + " << (int)imm6 << "] = DMEM[" << (int)addr
+                 << "] = R" << (int)rs2 << "(" << (int)data << ")" << endl;
+        }
+        dmem[addr] = data;
+        pc++;
+    }
+
     // Execute HALT instruction
     void execute_halt() {
         if (trace_enabled) {
@@ -342,6 +384,12 @@ public:
         return 0;
     }
     
+    // Get data memory value
+    uint8_t get_dmem(int addr) const {
+        if (addr >= 0 && addr < 256) return dmem[addr];
+        return 0;
+    }
+
     // Get PC
     uint8_t get_pc() const {
         return pc;
@@ -488,8 +536,32 @@ static bool test_addi(string& err) {
     return true;
 }
 
+static bool test_lw_sw(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_itype(0x7, 1, 0, 25),   // R1 = 25
+        encode_itype(0x7, 2, 0, 10),   // R2 = 10
+        encode_itype(0x9, 1, 0, 0),    // SW R1 -> DMEM[0] = 25
+        encode_itype(0x9, 2, 0, 5),    // SW R2 -> DMEM[5] = 10
+        encode_itype(0x8, 3, 0, 0),    // LW R3 = DMEM[0] = 25
+        encode_itype(0x8, 4, 0, 5),    // LW R4 = DMEM[5] = 10
+        encode_itype(0x8, 5, 0, 1),    // LW R5 = DMEM[1] = 0 (unwritten)
+        0x0000
+    });
+    bool halted = cpu.run();
+    if (!expect_true("Program should HALT", halted, err)) return false;
+    if (!expect_eq_u8("R3 (LW addr 0)", cpu.get_register(3), 25, err)) return false;
+    if (!expect_eq_u8("R4 (LW addr 5)", cpu.get_register(4), 10, err)) return false;
+    if (!expect_eq_u8("R5 (LW unwritten)", cpu.get_register(5), 0, err)) return false;
+    if (!expect_eq_u8("DMEM[0]", cpu.get_dmem(0), 25, err)) return false;
+    if (!expect_eq_u8("DMEM[5]", cpu.get_dmem(5), 10, err)) return false;
+    return true;
+}
+
 static int run_self_tests() {
     vector<pair<string, function<bool(string&)>>> tests = {
+        {"LW/SW memory", test_lw_sw},
         {"ALU sequence", test_alu_sequence},
         {"BEQ taken", test_beq_taken},
         {"BNE loop to zero", test_bne_loop_to_zero},

@@ -1,0 +1,7 @@
+8200  // PC=0: LW R1, R0, 0      -> R1 = DMEM[0]   (injected 0xAA)
+8405  // PC=1: LW R2, R0, 5      -> R2 = DMEM[5]   (injected 0x55)
+861F  // PC=2: LW R3, R0, 31     -> R3 = DMEM[31]  (injected 0xBB)
+780A  // PC=3: ADDI R4, R0, 10   -> R4 = 10 (base address for negative offset)
+8B3B  // PC=4: LW R5, R4, -5    -> R5 = DMEM[10-5] = DMEM[5] (0x55, neg offset)
+8C02  // PC=5: LW R6, R0, 2      -> R6 = DMEM[2] = 0 (unwritten address)
+0000  // PC=6: HALT

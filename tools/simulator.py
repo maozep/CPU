@@ -12,6 +12,7 @@ class CPUSimulator:
     def __init__(self):
         self.registers = [0] * 8          # R0-R7, 8-bit
         self.imem = [0] * 256             # Instruction memory, 16-bit words
+        self.dmem = [0] * 256             # Data memory, 8-bit words
         self.pc = 0                       # Program counter, 8-bit
         self.halted = False               # HALT flag
         self.instruction_count = 0        # Execution counter
@@ -20,6 +21,7 @@ class CPUSimulator:
     def reset(self):
         self.registers = [0] * 8
         self.imem = [0] * 256
+        self.dmem = [0] * 256
         self.pc = 0
         self.halted = False
         self.instruction_count = 0
@@ -169,6 +171,32 @@ class CPUSimulator:
         
         self.pc = next_pc
     
+    def execute_lw(self, instr: int):
+        """Execute LW instruction: rd = DMEM[rs1 + sign_extend(imm6)]"""
+        rd  = self.extract_bits(instr, 11, 9)
+        rs1 = self.extract_bits(instr, 8, 6)
+        imm6_raw = self.extract_bits(instr, 5, 0)
+        imm6 = self.sign_extend(imm6_raw, 6)
+        addr = (self.registers[rs1] + imm6) & 0xFF
+        result = self.dmem[addr]
+        if self.trace_enabled:
+            print(f"LW  R{rd} = DMEM[R{rs1}({self.registers[rs1]}) + {imm6}] = DMEM[{addr}] = {result}")
+        self.registers[rd] = result
+        self.pc = (self.pc + 1) & 0xFF
+
+    def execute_sw(self, instr: int):
+        """Execute SW instruction: DMEM[rs1 + sign_extend(imm6)] = rs2"""
+        rs2 = self.extract_bits(instr, 11, 9)  # data source
+        rs1 = self.extract_bits(instr, 8, 6)   # base address
+        imm6_raw = self.extract_bits(instr, 5, 0)
+        imm6 = self.sign_extend(imm6_raw, 6)
+        addr = (self.registers[rs1] + imm6) & 0xFF
+        data = self.registers[rs2]
+        if self.trace_enabled:
+            print(f"SW  DMEM[R{rs1}({self.registers[rs1]}) + {imm6}] = DMEM[{addr}] = R{rs2}({data})")
+        self.dmem[addr] = data
+        self.pc = (self.pc + 1) & 0xFF
+
     def execute_halt(self):
         """Execute HALT instruction"""
         if self.trace_enabled:
@@ -198,6 +226,10 @@ class CPUSimulator:
             self.execute_branch(instr, False)
         elif opcode == 0x7:    # ADDI
             self.execute_addi(instr)
+        elif opcode == 0x8:    # LW
+            self.execute_lw(instr)
+        elif opcode == 0x9:    # SW
+            self.execute_sw(instr)
         else:
             if self.trace_enabled:
                 print(f"UNKNOWN OPCODE 0x{opcode:x}")
@@ -327,6 +359,27 @@ def run_self_tests() -> int:
         assert cpu.registers[5] == 46,  f"R5={cpu.registers[5]}"
         assert cpu.registers[6] == 239, f"R6={cpu.registers[6]}"
 
+    def test_lw_sw():
+        cpu = CPUSimulator()
+        cpu.set_trace(False)
+        cpu.load_program([
+            encode_itype(0x7, 1, 0, 25),   # R1 = 25
+            encode_itype(0x7, 2, 0, 10),   # R2 = 10
+            encode_itype(0x9, 1, 0, 0),    # SW R1 -> DMEM[0] = 25
+            encode_itype(0x9, 2, 0, 5),    # SW R2 -> DMEM[5] = 10
+            encode_itype(0x8, 3, 0, 0),    # LW R3 = DMEM[0] = 25
+            encode_itype(0x8, 4, 0, 5),    # LW R4 = DMEM[5] = 10
+            encode_itype(0x8, 5, 0, 1),    # LW R5 = DMEM[1] = 0 (unwritten)
+            0x0000,
+        ])
+        assert cpu.run()
+        assert cpu.registers[3] == 25, f"R3={cpu.registers[3]}"
+        assert cpu.registers[4] == 10, f"R4={cpu.registers[4]}"
+        assert cpu.registers[5] == 0,  f"R5={cpu.registers[5]}"
+        assert cpu.dmem[0] == 25, f"DMEM[0]={cpu.dmem[0]}"
+        assert cpu.dmem[5] == 10, f"DMEM[5]={cpu.dmem[5]}"
+
+    tests.append(("LW/SW memory", test_lw_sw))
     tests.append(("ALU sequence", test_alu_sequence))
     tests.append(("BEQ taken", test_beq_taken_skip))
     tests.append(("BNE loop to zero", test_bne_negative_loop))

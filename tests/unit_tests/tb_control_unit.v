@@ -10,6 +10,9 @@ module tb_control_unit;
     wire         reg_write;
     wire [2:0]  alu_op;
     wire         use_imm;
+    wire         mem_read;
+    wire         mem_write;
+    wire         mem_to_reg;
     wire         is_branch;
     wire         is_bne;
     wire         is_halt;
@@ -23,6 +26,9 @@ module tb_control_unit;
         .reg_write (reg_write),
         .alu_op    (alu_op),
         .use_imm   (use_imm),
+        .mem_read  (mem_read),
+        .mem_write (mem_write),
+        .mem_to_reg(mem_to_reg),
         .is_branch (is_branch),
         .is_bne    (is_bne),
         .is_halt   (is_halt)
@@ -82,13 +88,43 @@ module tb_control_unit;
             errors = errors + 1;
         end
 
-        // Unknown scenario: opcode not in {1,2,3,4} => reg_write=0, alu_op=3'b000
-        // Keep any rd/rs1/rs2 fields; only opcode matters for reg_write/alu_op.
-        // opcode=9 => instr = 0x9298
-        instr = 16'h9298;
+        // LW scenario: opcode=8 => reg_write=1, use_imm=1, mem_read=1, mem_to_reg=1
+        // LW R3, R1, 5 => opcode=0x8, rd=3, rs1=1, imm6=5
+        // instr = 1000 011 001 000101 = 0x8645
+        instr = 16'h8645;
         #1;
-        $display("UNK  instr=0x%04h opcode=0x%1h rd=%0d rs1=%0d rs2=%0d reg_write=%b alu_op=0x%1h",
-            instr, opcode, rd_addr, rs1_addr, rs2_addr, reg_write, alu_op);
+        $display("LW   instr=0x%04h opcode=0x%1h rd=%0d rs1=%0d reg_write=%b alu_op=0x%1h use_imm=%b mem_read=%b mem_to_reg=%b",
+            instr, opcode, rd_addr, rs1_addr, reg_write, alu_op, use_imm, mem_read, mem_to_reg);
+        if (reg_write !== 1'b1 || use_imm !== 1'b1 || mem_read !== 1'b1 || mem_to_reg !== 1'b1 || alu_op !== 3'b000) begin
+            $display("FAIL: LW control mismatch");
+            errors = errors + 1;
+        end
+        if (rd_addr !== 3'd3 || rs1_addr !== 3'd1) begin
+            $display("FAIL: LW register address mismatch rd=%0d rs1=%0d", rd_addr, rs1_addr);
+            errors = errors + 1;
+        end
+
+        // SW scenario: opcode=9 => reg_write=0, use_imm=1, mem_write=1, mem_to_reg=0
+        // SW R2, R1, 0 => opcode=0x9, [11:9]=R2(data)=010, [8:6]=R1(base)=001, imm=0
+        // instr = 1001 010 001 000000 = 0x9440
+        instr = 16'h9440;
+        #1;
+        $display("SW   instr=0x%04h opcode=0x%1h rs1=%0d rs2=%0d reg_write=%b alu_op=0x%1h use_imm=%b mem_write=%b",
+            instr, opcode, rs1_addr, rs2_addr, reg_write, alu_op, use_imm, mem_write);
+        if (reg_write !== 1'b0 || use_imm !== 1'b1 || mem_write !== 1'b1 || alu_op !== 3'b000) begin
+            $display("FAIL: SW control mismatch");
+            errors = errors + 1;
+        end
+        if (rs1_addr !== 3'd1 || rs2_addr !== 3'd2) begin
+            $display("FAIL: SW register address mismatch rs1=%0d rs2=%0d (expected rs1=1 rs2=2)", rs1_addr, rs2_addr);
+            errors = errors + 1;
+        end
+
+        // Unknown scenario: opcode not recognized => reg_write=0, alu_op=3'b000
+        instr = 16'hF298;
+        #1;
+        $display("UNK  instr=0x%04h opcode=0x%1h reg_write=%b alu_op=0x%1h",
+            instr, opcode, reg_write, alu_op);
         if (reg_write !== 1'b0 || alu_op !== 3'b000) begin
             $display("FAIL: UNKNOWN control mismatch");
             errors = errors + 1;
