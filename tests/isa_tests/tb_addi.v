@@ -81,6 +81,10 @@ module tb_addi;
         if (uut.regfile_inst.regs[6] !== 8'd41)  begin $display("  FAIL: R6"); errors=errors+1; end
         if (uut.regfile_inst.regs[7] !== 8'd234) begin $display("  FAIL: R7"); errors=errors+1; end
 
+        // R0 write-protection: ADDI R0, R1, 5 must not modify R0
+        $display("  R0 (write-protect) Result: %0d  (expected 0)", uut.regfile_inst.regs[0]);
+        if (uut.regfile_inst.regs[0] !== 8'd0) begin $display("  FAIL: R0 (write-protection broken)"); errors=errors+1; end
+
         if (errors == 0)
             $display("  RESULT: PASS -- all ADDI operations verified.");
         else

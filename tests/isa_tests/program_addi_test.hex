@@ -1,6 +1,7 @@
-764A  // PC=0: ADDI R3, R1, 10
-787D  // PC=1: ADDI R4, R1, -3
-7A0A  // PC=2: ADDI R5, R0, 10
-7C9F  // PC=3: ADDI R6, R2, 31
-7EA0  // PC=4: ADDI R7, R2, -32
-0000  // PC=5: HALT
+764A  // PC=0: ADDI R3, R1, 10    -> R3 = 5+10 = 15
+787D  // PC=1: ADDI R4, R1, -3    -> R4 = 5-3 = 2
+7A0A  // PC=2: ADDI R5, R0, 10    -> R5 = 0+10 = 10 (R0 hardwired zero)
+7C9F  // PC=3: ADDI R6, R2, 31    -> R6 = 10+31 = 41 (max positive imm6)
+7EA0  // PC=4: ADDI R7, R2, -32   -> R7 = 10-32 = 234 (min negative imm6, wraps)
+7045  // PC=5: ADDI R0, R1, 5     -> R0 must stay 0 (write-protection)
+0000  // PC=6: HALT

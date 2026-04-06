@@ -1,8 +1,12 @@
-7205  // PC=0: ADDI R1, R0, 5    -> R1=5
-740A  // PC=1: ADDI R2, R0, 10   -> R2=10 (not equal to R1)
-7605  // PC=2: ADDI R3, R0, 5    -> R3=5  (equal to R1)
-6281  // PC=3: BNE  R1, R2, +1   -> taken (R1!=R2), jump to PC=5
-7801  // PC=4: ADDI R4, R0, 1    -> SKIPPED (R4 stays 0)
-62C1  // PC=5: BNE  R1, R3, +1   -> not taken (R1==R3), fall through
-7A19  // PC=6: ADDI R5, R0, 25   -> R5=25
-0000  // PC=7: HALT
+7205  // PC=0:  ADDI R1, R0, 5    -> R1=5
+740A  // PC=1:  ADDI R2, R0, 10   -> R2=10 (not equal to R1)
+7605  // PC=2:  ADDI R3, R0, 5    -> R3=5  (equal to R1)
+6281  // PC=3:  BNE  R1, R2, +1   -> taken (R1!=R2), skip to PC=5
+7801  // PC=4:  ADDI R4, R0, 1    -> SKIPPED (R4 stays 0)
+62C1  // PC=5:  BNE  R1, R3, +1   -> not taken (R1==R3), fall through
+7A19  // PC=6:  ADDI R5, R0, 25   -> R5=25
+6242  // PC=7:  BNE  R1, R1, +2   -> not taken (self-compare, always equal)
+7C14  // PC=8:  ADDI R6, R0, 20   -> R6=20 (proves self-compare didn't branch)
+6041  // PC=9:  BNE  R0, R1, +1   -> taken (0!=5, zero-reg edge case), skip to PC=11
+7E01  // PC=10: ADDI R7, R0, 1    -> SKIPPED (R7 stays 0)
+0000  // PC=11: HALT

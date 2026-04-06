@@ -1,8 +1,12 @@
-7205  // PC=0: ADDI R1, R0, 5    -> R1=5
-7405  // PC=1: ADDI R2, R0, 5    -> R2=5  (equal to R1)
-760A  // PC=2: ADDI R3, R0, 10   -> R3=10 (not equal to R1)
-5281  // PC=3: BEQ  R1, R2, +1   -> taken (R1==R2), jump to PC=5
-7801  // PC=4: ADDI R4, R0, 1    -> SKIPPED (R4 stays 0)
-52C1  // PC=5: BEQ  R1, R3, +1   -> not taken (R1!=R3), fall through
-7A19  // PC=6: ADDI R5, R0, 25   -> R5=25
-0000  // PC=7: HALT
+7205  // PC=0:  ADDI R1, R0, 5    -> R1=5
+7405  // PC=1:  ADDI R2, R0, 5    -> R2=5  (equal to R1)
+760A  // PC=2:  ADDI R3, R0, 10   -> R3=10 (not equal to R1)
+5281  // PC=3:  BEQ  R1, R2, +1   -> taken (R1==R2), skip to PC=5
+7801  // PC=4:  ADDI R4, R0, 1    -> SKIPPED (R4 stays 0)
+52C1  // PC=5:  BEQ  R1, R3, +1   -> not taken (R1!=R3), fall through
+7A19  // PC=6:  ADDI R5, R0, 25   -> R5=25
+5002  // PC=7:  BEQ  R0, R0, +2   -> taken (0==0, zero-reg edge case), skip to PC=10
+7C01  // PC=8:  ADDI R6, R0, 1    -> SKIPPED
+7C01  // PC=9:  ADDI R6, R0, 1    -> SKIPPED
+7E07  // PC=10: ADDI R7, R0, 7    -> R7=7
+0000  // PC=11: HALT

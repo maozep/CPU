@@ -1,11 +1,12 @@
 // tb_bne.v -- ISA Validation Testbench for the BNE instruction
 // Tests: BNE rs1, rs2, offset  =>  branch if rs1 != rs2
 //
-// Test plan:
-//   1. Load R1=5, R2=10 (not equal), R3=5 (equal) via ADDI
-//   2. BNE R1,R2,+1  -> should TAKE branch (R1!=R2), skipping R4 write
-//   3. BNE R1,R3,+1  -> should NOT branch (R1==R3), R5 write executes
-//   Expected: R4=0 (skipped), R5=25 (executed)
+// Test cases:
+//   1. BNE R1,R2,+1  -> taken (not equal), R4 skipped
+//   2. BNE R1,R3,+1  -> not taken (equal), R5 executes
+//   3. BNE R1,R1,+2  -> not taken (self-compare, always equal), R6 executes
+//   4. BNE R0,R1,+1  -> taken (zero-reg vs non-zero), R7 skipped
+//   Expected: R4=0, R5=25, R6=20, R7=0
 
 `timescale 1ns / 1ps
 
@@ -60,18 +61,16 @@ module tb_bne;
         $display("------------------------------------------------");
         $display("  BNE Validation Results");
         $display("------------------------------------------------");
-        $display("  R1 (ADDI R0+5)         Result: %0d  (expected 5)",  uut.regfile_inst.regs[1]);
-        $display("  R2 (ADDI R0+10)        Result: %0d  (expected 10)", uut.regfile_inst.regs[2]);
-        $display("  R3 (ADDI R0+5)         Result: %0d  (expected 5)",  uut.regfile_inst.regs[3]);
-        $display("  R4 (skipped by BNE)    Result: %0d  (expected 0)",  uut.regfile_inst.regs[4]);
-        $display("  R5 (not skipped)       Result: %0d  (expected 25)", uut.regfile_inst.regs[5]);
+        $display("  R4 (skipped by BNE taken)        Result: %0d  (expected 0)",  uut.regfile_inst.regs[4]);
+        $display("  R5 (BNE not taken, executes)     Result: %0d  (expected 25)", uut.regfile_inst.regs[5]);
+        $display("  R6 (self-compare not taken)      Result: %0d  (expected 20)", uut.regfile_inst.regs[6]);
+        $display("  R7 (skipped by R0!=R1)           Result: %0d  (expected 0)",  uut.regfile_inst.regs[7]);
         $display("------------------------------------------------");
 
-        if (uut.regfile_inst.regs[1] !== 8'd5)  begin $display("  FAIL: R1"); errors=errors+1; end
-        if (uut.regfile_inst.regs[2] !== 8'd10) begin $display("  FAIL: R2"); errors=errors+1; end
-        if (uut.regfile_inst.regs[3] !== 8'd5)  begin $display("  FAIL: R3"); errors=errors+1; end
-        if (uut.regfile_inst.regs[4] !== 8'd0)  begin $display("  FAIL: R4 (should have been skipped)"); errors=errors+1; end
+        if (uut.regfile_inst.regs[4] !== 8'd0)  begin $display("  FAIL: R4 (should be skipped)"); errors=errors+1; end
         if (uut.regfile_inst.regs[5] !== 8'd25) begin $display("  FAIL: R5"); errors=errors+1; end
+        if (uut.regfile_inst.regs[6] !== 8'd20) begin $display("  FAIL: R6 (self-compare should not branch)"); errors=errors+1; end
+        if (uut.regfile_inst.regs[7] !== 8'd0)  begin $display("  FAIL: R7 (should be skipped by R0!=R1)"); errors=errors+1; end
 
         if (errors == 0)
             $display("  RESULT: PASS -- all BNE operations verified.");
@@ -84,11 +83,10 @@ module tb_bne;
 
     always @(negedge clk) begin
         if (!rst)
-            $display("  t=%0t | PC=%0d | Instr=0x%04h | R1=%0d R2=%0d R3=%0d R4=%0d R5=%0d",
+            $display("  t=%0t | PC=%0d | Instr=0x%04h | R4=%0d R5=%0d R6=%0d R7=%0d",
                      $time, uut.pc_to_imem, current_instruction,
-                     uut.regfile_inst.regs[1], uut.regfile_inst.regs[2],
-                     uut.regfile_inst.regs[3], uut.regfile_inst.regs[4],
-                     uut.regfile_inst.regs[5]);
+                     uut.regfile_inst.regs[4], uut.regfile_inst.regs[5],
+                     uut.regfile_inst.regs[6], uut.regfile_inst.regs[7]);
     end
 
 endmodule

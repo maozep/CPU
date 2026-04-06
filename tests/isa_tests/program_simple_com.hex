@@ -1,9 +1,6 @@
-1648  // PC=0: ADD R3, R1, R1
-2848  // PC=1: SUB R4, R1, R1
-4A48  // PC=2: OR  R5, R1, R1
-4C88  // PC=3: OR  R6, R2, R1
-4E90  // PC=4: OR  R7, R2, R2
-3A48  // PC=5: AND R5, R1, R1
-3C88  // PC=6: AND R6, R2, R1
-3E90  // PC=7: AND R7, R2, R2
-0000  // PC=8: HALT
+1650  // PC=0: ADD R3, R1, R2   -> 0xA5+0x5A = 0xFF (255, tests sum-to-max)
+2888  // PC=1: SUB R4, R2, R1   -> 0x5A-0xA5 = 0xB5 (181, tests underflow wrap)
+3A50  // PC=2: AND R5, R1, R2   -> 0xA5&0x5A = 0x00 (complementary bits -> zero)
+4C50  // PC=3: OR  R6, R1, R2   -> 0xA5|0x5A = 0xFF (complementary bits -> all ones)
+1E48  // PC=4: ADD R7, R1, R1   -> 0xA5+0xA5 = 0x4A (74, tests overflow wrap)
+0000  // PC=5: HALT
