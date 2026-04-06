@@ -9,6 +9,7 @@ module control_unit (
     output reg  [2:0]  rs2_addr,
     output reg         reg_write,
     output reg  [2:0]  alu_op,
+    output reg         use_imm,
     output wire        is_branch,
     output wire        is_bne,
     output wire        is_halt
@@ -31,6 +32,7 @@ module control_unit (
         // Defaults (no writeback)
         reg_write = 1'b0;
         alu_op    = 3'b000;
+        use_imm   = 1'b0;
 
         case (opcode)
             4'h0: begin // HALT
@@ -52,6 +54,14 @@ module control_unit (
             4'h4: begin // OR
                 reg_write = 1'b1;
                 alu_op    = 3'b011;
+            end
+            4'h7: begin // ADDI: rd = rs1 + sign_extend(instr[5:0])
+                // Field layout: [15:12] opcode | [11:9] rd | [8:6] rs1 | [5:0] imm6
+                rd_addr   = instr[11:9];
+                rs1_addr  = instr[8:6];
+                reg_write = 1'b1;
+                alu_op    = 3'b000; // ADD
+                use_imm   = 1'b1;
             end
             4'h5: begin // BEQ
                 // BEQ mapping (strict 16-bit):

@@ -166,6 +166,9 @@ public:
             case 0x6:  // BNE
                 execute_branch(instr, false);
                 break;
+            case 0x7:  // ADDI
+                execute_addi(instr);
+                break;
             default:
                 if (trace_enabled) {
                     cout << "UNKNOWN OPCODE 0x" << hex << (int)opcode << dec << endl;
@@ -174,6 +177,22 @@ public:
         }
     }
     
+    // Execute ADDI instruction: rd = rs1 + sign_extend(imm6)
+    void execute_addi(uint16_t instr) {
+        uint8_t rd  = (uint8_t)extract_bits(instr, 11, 9);
+        uint8_t rs1 = (uint8_t)extract_bits(instr, 8, 6);
+        uint16_t imm6_raw = extract_bits(instr, 5, 0);
+        int16_t imm6 = sign_extend(imm6_raw, 6);
+        uint8_t result = (uint8_t)(registers[rs1] + imm6);
+        if (trace_enabled) {
+            cout << "ADDI R" << (int)rd << " = R" << (int)rs1
+                 << "(" << (int)registers[rs1] << ") + " << (int)imm6
+                 << " = " << (int)result << endl;
+        }
+        registers[rd] = result;
+        pc++;
+    }
+
     // Execute ALU instruction (ADD, SUB, AND, OR)
     void execute_alu(uint16_t instr, char op) {
         uint8_t rd  = (uint8_t)extract_bits(instr, 11, 9);
@@ -345,6 +364,10 @@ static uint16_t encode_branch(uint8_t opcode, uint8_t rs1, uint8_t rs2, int8_t o
     return (uint16_t)(((opcode & 0xF) << 12) | ((rs1 & 0x7) << 9) | ((rs2 & 0x7) << 6) | ((uint8_t)offset6 & 0x3F));
 }
 
+static uint16_t encode_itype(uint8_t opcode, uint8_t rd, uint8_t rs1, int8_t imm6) {
+    return (uint16_t)(((opcode & 0xF) << 12) | ((rd & 0x7) << 9) | ((rs1 & 0x7) << 6) | ((uint8_t)imm6 & 0x3F));
+}
+
 static bool expect_eq_u8(const string& name, uint8_t got, uint8_t expected, string& err) {
     if (got != expected) {
         stringstream ss;
@@ -443,12 +466,35 @@ static bool test_max_steps_guard(string& err) {
     return true;
 }
 
+static bool test_addi(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_itype(0x7, 2, 1, 10),   // R2 = R1 + 10  (5+10=15)
+        encode_itype(0x7, 3, 1, -3),   // R3 = R1 + (-3) (5-3=2)
+        encode_itype(0x7, 4, 0,  7),   // R4 = R0 + 7   (0+7=7)
+        encode_itype(0x7, 5, 2, 31),   // R5 = R2 + 31  (15+31=46) -- max positive imm
+        encode_itype(0x7, 6, 2, -32),  // R6 = R2 + (-32) (15-32=239 wrap)
+        0x0000
+    });
+    cpu.set_register(1, 5);
+    bool halted = cpu.run();
+    if (!expect_true("Program should HALT", halted, err)) return false;
+    if (!expect_eq_u8("R2 (5+10)", cpu.get_register(2), 15,  err)) return false;
+    if (!expect_eq_u8("R3 (5-3)",  cpu.get_register(3), 2,   err)) return false;
+    if (!expect_eq_u8("R4 (0+7)",  cpu.get_register(4), 7,   err)) return false;
+    if (!expect_eq_u8("R5 (15+31)",cpu.get_register(5), 46,  err)) return false;
+    if (!expect_eq_u8("R6 (15-32 wrap)", cpu.get_register(6), 239, err)) return false;
+    return true;
+}
+
 static int run_self_tests() {
     vector<pair<string, function<bool(string&)>>> tests = {
         {"ALU sequence", test_alu_sequence},
         {"BEQ taken", test_beq_taken},
         {"BNE loop to zero", test_bne_loop_to_zero},
-        {"Max-steps guard", test_max_steps_guard}
+        {"Max-steps guard", test_max_steps_guard},
+        {"ADDI immediate", test_addi}
     };
 
     int passed = 0;

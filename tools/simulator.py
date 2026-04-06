@@ -92,12 +92,25 @@ class CPUSimulator:
         """Fetch instruction at current PC"""
         return self.imem[self.pc]
     
+    def execute_addi(self, instr: int):
+        """Execute ADDI instruction: rd = rs1 + sign_extend(imm6)"""
+        rd  = self.extract_bits(instr, 11, 9)
+        rs1 = self.extract_bits(instr, 8, 6)
+        imm6_raw = self.extract_bits(instr, 5, 0)
+        imm6 = self.sign_extend(imm6_raw, 6)
+        val1 = self.registers[rs1]
+        result = (val1 + imm6) & 0xFF
+        if self.trace_enabled:
+            print(f"ADDI R{rd} = R{rs1}({val1}) + {imm6} = {result}")
+        self.registers[rd] = result
+        self.pc = (self.pc + 1) & 0xFF
+
     def execute_alu(self, instr: int, op: str):
         """Execute ALU instruction (ADD, SUB, AND, OR)"""
         rd = self.extract_bits(instr, 11, 9)
         rs1 = self.extract_bits(instr, 8, 6)
         rs2 = self.extract_bits(instr, 5, 3)
-        
+
         val1 = self.registers[rs1]
         val2 = self.registers[rs2]
         
@@ -183,6 +196,8 @@ class CPUSimulator:
             self.execute_branch(instr, True)
         elif opcode == 0x6:    # BNE
             self.execute_branch(instr, False)
+        elif opcode == 0x7:    # ADDI
+            self.execute_addi(instr)
         else:
             if self.trace_enabled:
                 print(f"UNKNOWN OPCODE 0x{opcode:x}")
@@ -224,6 +239,10 @@ def encode_rtype(opcode: int, rd: int, rs1: int, rs2: int) -> int:
 
 def encode_branch(opcode: int, rs1: int, rs2: int, offset6: int) -> int:
     return ((opcode & 0xF) << 12) | ((rs1 & 0x7) << 9) | ((rs2 & 0x7) << 6) | (offset6 & 0x3F)
+
+
+def encode_itype(opcode: int, rd: int, rs1: int, imm6: int) -> int:
+    return ((opcode & 0xF) << 12) | ((rd & 0x7) << 9) | ((rs1 & 0x7) << 6) | (imm6 & 0x3F)
 
 
 def run_self_tests() -> int:
@@ -289,10 +308,30 @@ def run_self_tests() -> int:
         assert cpu.pc == 0
         assert cpu.instruction_count == 20
 
+    def test_addi():
+        cpu = CPUSimulator()
+        cpu.set_trace(False)
+        cpu.load_program([
+            encode_itype(0x7, 2, 1, 10),   # R2 = R1 + 10  (5+10=15)
+            encode_itype(0x7, 3, 1, -3),   # R3 = R1 + (-3) (5-3=2)
+            encode_itype(0x7, 4, 0, 7),    # R4 = R0 + 7   (0+7=7)
+            encode_itype(0x7, 5, 2, 31),   # R5 = R2 + 31  (15+31=46)
+            encode_itype(0x7, 6, 2, -32),  # R6 = R2 + (-32) (15-32= wrap 239)
+            0x0000,
+        ])
+        cpu.set_register(1, 5)
+        assert cpu.run()
+        assert cpu.registers[2] == 15,  f"R2={cpu.registers[2]}"
+        assert cpu.registers[3] == 2,   f"R3={cpu.registers[3]}"
+        assert cpu.registers[4] == 7,   f"R4={cpu.registers[4]}"
+        assert cpu.registers[5] == 46,  f"R5={cpu.registers[5]}"
+        assert cpu.registers[6] == 239, f"R6={cpu.registers[6]}"
+
     tests.append(("ALU sequence", test_alu_sequence))
     tests.append(("BEQ taken", test_beq_taken_skip))
     tests.append(("BNE loop to zero", test_bne_negative_loop))
     tests.append(("Max-steps guard", test_max_steps_guard))
+    tests.append(("ADDI immediate", test_addi))
 
     print(f"[SELF-TEST] Running {len(tests)} Python simulator tests")
     passed = 0

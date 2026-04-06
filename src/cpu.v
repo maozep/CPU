@@ -40,6 +40,7 @@ module cpu (
     wire [2:0] rs2_addr;
     wire       reg_write;
     wire [2:0] alu_op;
+    wire       use_imm;
     wire       is_branch;
     wire       is_bne;
     wire       is_halt;
@@ -52,6 +53,7 @@ module cpu (
         .rs2_addr  (rs2_addr),
         .reg_write (reg_write),
         .alu_op    (alu_op),
+        .use_imm   (use_imm),
         .is_branch (is_branch),
         .is_bne    (is_bne),
         .is_halt   (is_halt)
@@ -60,6 +62,13 @@ module cpu (
     // Register read operands (asynchronous dual-read)
     wire [7:0] rs1_data;
     wire [7:0] rs2_data;
+
+    // ADDI: sign-extend 6-bit immediate from instruction[5:0]
+    wire [7:0] imm6_sext = {{2{current_instruction[5]}}, current_instruction[5:0]};
+
+    // ALU second operand mux: register rs2 or sign-extended immediate
+    wire [7:0] alu_b;
+    assign alu_b = use_imm ? imm6_sext : rs2_data;
 
     // ALU result (combinational)
     wire [7:0] alu_result;
@@ -81,7 +90,7 @@ module cpu (
 
     alu alu_inst (
         .A            (rs1_data),
-        .B            (rs2_data),
+        .B            (alu_b),
         .ALU_Control (alu_op),
         .ALU_Result  (alu_result),
         .zero         (alu_zero)

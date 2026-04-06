@@ -9,6 +9,7 @@ for end-to-end behavior.
 Implemented and verified:
 
 - ALU operations: ADD, SUB, AND, OR
+- Immediate add: ADDI (rd = rs1 + sign_extend(imm6))
 - Register file: 8x8, dual asynchronous read, single synchronous write, R0 hard-wired to zero
 - Branching: BEQ and BNE with signed 6-bit offset
 - Real HALT behavior: PC freezes when HALT is decoded
@@ -26,6 +27,12 @@ R-type format:
 [15:12] opcode | [11:9] rd | [8:6] rs1 | [5:3] rs2 | [2:0] reserved
 ```
 
+I-type format (ADDI):
+
+```
+[15:12] opcode | [11:9] rd | [8:6] rs1 | [5:0] signed immediate (imm6)
+```
+
 Branch format:
 
 ```
@@ -34,15 +41,16 @@ Branch format:
 
 Supported opcodes:
 
-| Opcode | Mnemonic | Behavior |
-| --- | --- | --- |
-| `4'h0` | HALT | Stop PC advance (freeze at current instruction address) |
-| `4'h1` | ADD | `rd = rs1 + rs2` |
-| `4'h2` | SUB | `rd = rs1 - rs2` |
-| `4'h3` | AND | `rd = rs1 & rs2` |
-| `4'h4` | OR | `rd = rs1 \| rs2` |
-| `4'h5` | BEQ | if equal, `PC = PC + 1 + offset` |
-| `4'h6` | BNE | if not equal, `PC = PC + 1 + offset` |
+| Opcode | Mnemonic | Format | Behavior |
+| --- | --- | --- | --- |
+| `4'h0` | HALT | — | Stop PC advance (freeze at current instruction address) |
+| `4'h1` | ADD | R-type | `rd = rs1 + rs2` |
+| `4'h2` | SUB | R-type | `rd = rs1 - rs2` |
+| `4'h3` | AND | R-type | `rd = rs1 & rs2` |
+| `4'h4` | OR | R-type | `rd = rs1 \| rs2` |
+| `4'h5` | BEQ | Branch | if equal, `PC = PC + 1 + offset` |
+| `4'h6` | BNE | Branch | if not equal, `PC = PC + 1 + offset` |
+| `4'h7` | ADDI | I-type | `rd = rs1 + sign_extend(imm6)` (imm6 range: −32..+31) |
 
 ## Project Structure
 
@@ -57,11 +65,14 @@ Supported opcodes:
 │   └── regfile.v
 ├── tests/
 │   ├── asm/
+│   │   ├── program_addi_test.asm
 │   │   ├── program_bne_loop.asm
 │   │   └── program_simple_com.asm
 │   ├── program.hex
 │   ├── isa_tests/
+│   │   ├── program_addi_test.hex
 │   │   ├── program_simple_com.hex
+│   │   ├── tb_addi.v
 │   │   └── tb_simple_com.v
 │   └── unit_tests/
 │       ├── tb_alu.v
@@ -91,9 +102,10 @@ Unit tests:
 - `tests/unit_tests/tb_imem.v`
 - `tests/unit_tests/tb_cpu.v`
 
-ISA test:
+ISA tests:
 
-- `tests/isa_tests/tb_simple_com.v`
+- `tests/isa_tests/tb_simple_com.v` — ADD, SUB, AND, OR
+- `tests/isa_tests/tb_addi.v` — ADDI (positive, negative, wrap-around immediates)
 
 ## Assembler
 
@@ -108,6 +120,7 @@ Supported mnemonics:
 - `OR rd, rs1, rs2`
 - `BEQ rs1, rs2, label_or_offset`
 - `BNE rs1, rs2, label_or_offset`
+- `ADDI rd, rs1, imm` (imm is a signed integer in −32..+31)
 
 Assembler features:
 
@@ -188,9 +201,10 @@ C:\msys64\usr\bin\bash.exe -lc 'export PATH=/ucrt64/bin:$PATH; cd /c/Users/LENOV
 
 Latest validation highlights:
 
-- Python simulator built-in self-tests: `4/4` passed (`--self-test`)
-- C++ simulator built-in self-tests: `4/4` passed (`--self-test`)
+- Python simulator built-in self-tests: `5/5` passed (`--self-test`, includes ADDI)
+- C++ simulator built-in self-tests: `5/5` passed (`--self-test`, includes ADDI)
 - Verilog PC edge tests in `tests/unit_tests/tb_pc.v` include `+31`, `-32`, and 8-bit wrap-around branch behavior
+- Verilog ADDI ISA test (`tests/isa_tests/tb_addi.v`): PASS — positive imm, negative imm, R0 source, max/min imm6, 8-bit wrap
 - Full regression (`tools/tools/e2e_run.py`) passes after updates
 
 See [SIMULATOR.md](SIMULATOR.md) for detailed documentation, ISA reference, and verification techniques.

@@ -33,10 +33,12 @@ OPCODES = {
 	"OR": 0x4,
 	"BEQ": 0x5,
 	"BNE": 0x6,
+	"ADDI": 0x7,
 }
 
 R_TYPE = {"ADD", "SUB", "AND", "OR"}
 BR_TYPE = {"BEQ", "BNE"}
+I_TYPE = {"ADDI"}
 
 COMMENT_MARKERS = ("//", "#", ";")
 LABEL_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -144,6 +146,14 @@ def encode_rtype(opcode: int, rd: int, rs1: int, rs2: int) -> int:
 	return (opcode << 12) | (rd << 9) | (rs1 << 6) | (rs2 << 3)
 
 
+def encode_itype(opcode: int, rd: int, rs1: int, imm6: int) -> int:
+	if imm6 < -32 or imm6 > 31:
+		raise AssemblerError(
+			f"Immediate {imm6} out of range for signed 6-bit field (-32..31)."
+		)
+	return (opcode << 12) | (rd << 9) | (rs1 << 6) | (imm6 & 0x3F)
+
+
 def encode_branch(opcode: int, rs1: int, rs2: int, offset: int) -> int:
 	if offset < -32 or offset > 31:
 		raise AssemblerError(
@@ -194,6 +204,17 @@ def assemble(parsed: Sequence[ParsedLine], labels: Dict[str, int]) -> List[Tuple
 			target = resolve_branch_target(ops[2], labels, line.source_line)
 			offset = target - (line.pc + 1)
 			encoded.append((encode_branch(op, rs1, rs2, offset), line))
+			continue
+
+		if mnemonic in I_TYPE:  # ADDI rd, rs1, imm
+			if len(ops) != 3:
+				raise AssemblerError(
+					f"Line {line.source_line}: {mnemonic} expects 3 operands (rd, rs1, imm)."
+				)
+			rd = parse_register(ops[0], line.source_line)
+			rs1 = parse_register(ops[1], line.source_line)
+			imm6 = parse_int(ops[2], line.source_line)
+			encoded.append((encode_itype(op, rd, rs1, imm6), line))
 			continue
 
 		raise AssemblerError(f"Line {line.source_line}: unsupported mnemonic '{mnemonic}'.")

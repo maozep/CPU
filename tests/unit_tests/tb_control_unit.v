@@ -9,6 +9,7 @@ module tb_control_unit;
     wire [2:0]  rs2_addr;
     wire         reg_write;
     wire [2:0]  alu_op;
+    wire         use_imm;
     wire         is_branch;
     wire         is_bne;
     wire         is_halt;
@@ -21,6 +22,7 @@ module tb_control_unit;
         .rs2_addr  (rs2_addr),
         .reg_write (reg_write),
         .alu_op    (alu_op),
+        .use_imm   (use_imm),
         .is_branch (is_branch),
         .is_bne    (is_bne),
         .is_halt   (is_halt)
@@ -89,6 +91,22 @@ module tb_control_unit;
             instr, opcode, rd_addr, rs1_addr, rs2_addr, reg_write, alu_op);
         if (reg_write !== 1'b0 || alu_op !== 3'b000) begin
             $display("FAIL: UNKNOWN control mismatch");
+            errors = errors + 1;
+        end
+
+        // ADDI scenario: opcode=7 => reg_write=1, alu_op=ADD, use_imm=1
+        // ADDI R3, R1, -3 => opcode=0x7, rd=3, rs1=1, imm6=0x3D (-3 in 6-bit)
+        // instr = 0111 011 001 111101 = 0x76_7D => 0x767D
+        instr = 16'h767D;
+        #1;
+        $display("ADDI instr=0x%04h opcode=0x%1h rd=%0d rs1=%0d reg_write=%b alu_op=0x%1h use_imm=%b",
+            instr, opcode, rd_addr, rs1_addr, reg_write, alu_op, use_imm);
+        if (reg_write !== 1'b1 || alu_op !== 3'b000 || use_imm !== 1'b1) begin
+            $display("FAIL: ADDI control mismatch");
+            errors = errors + 1;
+        end
+        if (rd_addr !== 3'b011 || rs1_addr !== 3'b001) begin
+            $display("FAIL: ADDI register address mismatch rd=%0d rs1=%0d", rd_addr, rs1_addr);
             errors = errors + 1;
         end
 
