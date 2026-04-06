@@ -10,6 +10,9 @@ module control_unit (
     output reg         reg_write,
     output reg  [2:0]  alu_op,
     output reg         use_imm,
+    output reg         mem_read,
+    output reg         mem_write,
+    output reg         mem_to_reg,
     output wire        is_branch,
     output wire        is_bne,
     output wire        is_halt
@@ -29,10 +32,13 @@ module control_unit (
         rs1_addr = instr[8:6];
         rs2_addr = instr[5:3];
 
-        // Defaults (no writeback)
-        reg_write = 1'b0;
-        alu_op    = 3'b000;
-        use_imm   = 1'b0;
+        // Defaults (no writeback, no memory access)
+        reg_write  = 1'b0;
+        alu_op     = 3'b000;
+        use_imm    = 1'b0;
+        mem_read   = 1'b0;
+        mem_write  = 1'b0;
+        mem_to_reg = 1'b0;
 
         case (opcode)
             4'h0: begin // HALT
@@ -76,6 +82,25 @@ module control_unit (
                 rs2_addr = instr[8:6];
                 reg_write = 1'b0;
                 alu_op    = 3'b001; // SUB for compare via zero flag
+            end
+            4'h8: begin // LW: rd = DMEM[rs1 + sign_extend(imm6)]
+                // Format: [15:12] opcode | [11:9] rd | [8:6] rs1 | [5:0] imm6
+                rd_addr    = instr[11:9];
+                rs1_addr   = instr[8:6];
+                reg_write  = 1'b1;
+                alu_op     = 3'b000; // ADD for address calculation
+                use_imm    = 1'b1;
+                mem_read   = 1'b1;
+                mem_to_reg = 1'b1;
+            end
+            4'h9: begin // SW: DMEM[rs1 + sign_extend(imm6)] = rd
+                // Format: [15:12] opcode | [11:9] rs2(data) | [8:6] rs1(base) | [5:0] imm6
+                rs1_addr  = instr[8:6];
+                rs2_addr  = instr[11:9]; // data source register
+                reg_write = 1'b0;
+                alu_op    = 3'b000; // ADD for address calculation
+                use_imm   = 1'b1;
+                mem_write = 1'b1;
             end
             default: begin
                 reg_write = 1'b0;
