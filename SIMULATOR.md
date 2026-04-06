@@ -33,6 +33,15 @@ Format: `[Opcode 4b][Rd 3b][Rs1 3b][Rs2 3b][Reserved 3b]`
 | AND rd, rs1, rs2 | 0x3 | rd ← rs1 & rs2 |
 | OR rd, rs1, rs2  | 0x4 | rd ← rs1 \| rs2 |
 
+### I-Type Immediate Instruction
+Format: `[Opcode 4b][Rd 3b][Rs1 3b][Signed_Imm 6b]`
+
+| Mnemonic | Opcode | Description |
+|----------|--------|-------------|
+| ADDI rd, rs1, imm6 | 0x7 | rd ← rs1 + sign_extend(imm6) |
+
+Immediate range: **-32 to +31** (signed 6-bit)
+
 ### I-Type Branch Instructions
 Format: `[Opcode 4b][Rs1 3b][Rs2 3b][Signed_Offset 6b]`
 
@@ -54,32 +63,32 @@ Branch offsets are signed 6-bit values: **-32 to +31**
 
 ```bash
 # Basic usage
-python simulator.py <hex_file>
+python tools/simulator.py <hex_file>
 
 # Example
-python simulator.py tests/program.hex
-python simulator.py tests/isa_tests/program_simple_com.hex
+python tools/simulator.py tests/program.hex
+python tools/simulator.py tests/isa_tests/program_simple_com.hex
 
 # Demo + self-tests
-python simulator.py tests/program.hex --demo
-python simulator.py --self-test
+python tools/simulator.py tests/program.hex --demo
+python tools/simulator.py --self-test
 ```
 
 ### C++ Simulator (If g++ is installed)
 
 ```bash
 # Compile
-g++ -o sim_cpu simulator.cpp -std=c++11
+g++ -o tools/sim_cpu tools/simulator.cpp -std=c++11
 
 # Run
-./sim_cpu <hex_file>
+./tools/sim_cpu <hex_file>
 
 # Example
-./sim_cpu tests/program.hex
+./tools/sim_cpu tests/program.hex
 
 # Demo + self-tests
-./sim_cpu tests/program.hex --demo
-./sim_cpu --self-test
+./tools/sim_cpu tests/program.hex --demo
+./tools/sim_cpu --self-test
 ```
 
 ### Windows (MSYS2) One-Command Flow
@@ -92,8 +101,8 @@ C:\msys64\usr\bin\bash.exe -lc 'export PATH=/ucrt64/bin:$PATH; cd /c/Users/LENOV
 
 Latest validated checks include:
 
-1. Python simulator self-tests (`--self-test`): 4/4 pass
-2. C++ simulator self-tests (`--self-test`): 4/4 pass
+1. Python simulator self-tests (`--self-test`): 5/5 pass (includes ADDI)
+2. C++ simulator self-tests (`--self-test`): 5/5 pass (includes ADDI)
 3. Verilog PC critical edge testbench (`tests/unit_tests/tb_pc.v`) now covers:
   - BEQ with max positive offset `+31`
   - BEQ with min negative offset `-32`
@@ -140,7 +149,7 @@ Create a test HEX file with BEQ and trace both:
 
 Run simulator:
 ```bash
-python simulator.py test_beq.hex
+python tools/simulator.py test_beq.hex
 ```
 
 Expected trace:
@@ -178,25 +187,41 @@ If your Verilog generates identical register states, the implementation is corre
 - Forward branches: offset = +1 to +31
 - Backward branches: offset = -32 to -1
 
-## Integration with Build System
+## Verification Tool
 
-Currently the Python simulator is standalone. To integrate into `e2e_run.py`:
+A dedicated verification script (`tools/verify_simulator.py`) can run the simulator on multiple HEX files and extract final register state for comparison:
 
-```python
-# In e2e_run.py
-def run_simulator(repo_root, hex_file):
-    """Run behavioral simulator for verification"""
-    cmd = [
-        get_python_exe(repo_root),
-        os.path.join(repo_root, "tools/simulator.py"),
-        hex_file
-    ]
-    return run_command(cmd)
+```bash
+python tools/verify_simulator.py tests/program.hex tests/isa_tests/program_simple_com.hex
 ```
+
+Output shows per-file register snapshots and a pass/fail summary.
+
+## Troubleshooting
+
+### File Not Found Error
+```
+[ERROR] Cannot open file: tests/program.hex
+```
+**Fix**: Use correct relative path from repository root or absolute path.
+
+### Python Not Found (Windows)
+```
+python: command not found
+```
+**Fix**: Use full path to Python from your venv:
+```bash
+.venv/Scripts/python.exe tools/simulator.py tests/program.hex
+```
+
+### Outputs Don't Match Verilog
+1. Check HEX file is loaded correctly (look for `[LOADER] Loaded X instructions`)
+2. Compare final register values line by line
+3. Find the first instruction where register values diverge
+4. Verify opcode and operand bit positions in both implementations
 
 ## Future Enhancements
 
-- [ ] Add support for ADDI instruction (immediate arithmetic)
 - [ ] Implement memory-mapped I/O (LW, SW instructions)
 - [ ] Add cycle count / performance profiling
 - [ ] Generate VCD (Value Change Dump) for waveform comparison

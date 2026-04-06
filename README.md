@@ -207,7 +207,7 @@ Latest validation highlights:
 - Verilog ADDI ISA test (`tests/isa_tests/tb_addi.v`): PASS — positive imm, negative imm, R0 source, max/min imm6, 8-bit wrap
 - Full regression (`tools/tools/e2e_run.py`) passes after updates
 
-See [SIMULATOR.md](SIMULATOR.md) for detailed documentation, ISA reference, and verification techniques.
+See [SIMULATOR.md](SIMULATOR.md) for full documentation, ISA reference, troubleshooting, and verification techniques.
 
 ## Notes
 
