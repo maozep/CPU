@@ -15,6 +15,7 @@ module control_unit (
     output reg         mem_to_reg,
     output wire        is_branch,
     output wire        is_bne,
+    output wire        is_jump,
     output wire        is_halt
 );
 
@@ -22,6 +23,7 @@ module control_unit (
 
     assign is_branch = (opcode == 4'h5);
     assign is_bne    = (opcode == BNE);
+    assign is_jump   = (opcode == 4'hA);
     assign is_halt   = (opcode == 4'h0);
 
     always @* begin
@@ -101,6 +103,9 @@ module control_unit (
                 alu_op    = 3'b000; // ADD for address calculation
                 use_imm   = 1'b1;
                 mem_write = 1'b1;
+            end
+            4'hA: begin // JMP: unconditional relative jump
+                reg_write = 1'b0;
             end
             default: begin
                 reg_write = 1'b0;

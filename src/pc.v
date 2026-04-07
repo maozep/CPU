@@ -4,13 +4,14 @@ module pc (
     input  wire       halt,
     input  wire       is_branch,
     input  wire       is_bne,
+    input  wire       is_jump,
     input  wire       zero,
     input  wire [5:0] branch_offset,
     output reg  [7:0] pc_out
 );
 
     wire branch_taken;
-    assign branch_taken = (is_branch && zero) || (is_bne && !zero);
+    assign branch_taken = is_jump || (is_branch && zero) || (is_bne && !zero);
 
     // Asynchronous reset: clear immediately when reset is asserted.
     // Otherwise increment on each rising clock edge.

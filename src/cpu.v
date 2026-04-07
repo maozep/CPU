@@ -22,6 +22,7 @@ module cpu (
         .halt         (is_halt),
         .is_branch    (is_branch),
         .is_bne       (is_bne),
+        .is_jump      (is_jump),
         .zero         (alu_zero),
         .branch_offset(branch_offset),
         .pc_out       (pc_to_imem)
@@ -46,6 +47,7 @@ module cpu (
     wire       mem_to_reg;
     wire       is_branch;
     wire       is_bne;
+    wire       is_jump;
     wire       is_halt;
 
     control_unit control_unit_inst (
@@ -62,6 +64,7 @@ module cpu (
         .mem_to_reg(mem_to_reg),
         .is_branch (is_branch),
         .is_bne    (is_bne),
+        .is_jump   (is_jump),
         .is_halt   (is_halt)
     );
 

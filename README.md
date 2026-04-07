@@ -10,6 +10,7 @@ Implemented and verified:
 
 - ALU operations: ADD, SUB, AND, OR
 - Immediate add: ADDI (rd = rs1 + sign_extend(imm6))
+- Data memory: 256x8 RAM with LW (load word) and SW (store word)
 - Register file: 8x8, dual asynchronous read, single synchronous write, R0 hard-wired to zero
 - Branching: BEQ and BNE with signed 6-bit offset
 - Real HALT behavior: PC freezes when HALT is decoded
@@ -27,10 +28,16 @@ R-type format:
 [15:12] opcode | [11:9] rd | [8:6] rs1 | [5:3] rs2 | [2:0] reserved
 ```
 
-I-type format (ADDI):
+I-type format (ADDI, LW):
 
 ```
 [15:12] opcode | [11:9] rd | [8:6] rs1 | [5:0] signed immediate (imm6)
+```
+
+S-type format (SW):
+
+```
+[15:12] opcode | [11:9] rs2 (data) | [8:6] rs1 (base) | [5:0] signed immediate (imm6)
 ```
 
 Branch format:
@@ -51,6 +58,8 @@ Supported opcodes:
 | `4'h5` | BEQ | Branch | if equal, `PC = PC + 1 + offset` |
 | `4'h6` | BNE | Branch | if not equal, `PC = PC + 1 + offset` |
 | `4'h7` | ADDI | I-type | `rd = rs1 + sign_extend(imm6)` (imm6 range: −32..+31) |
+| `4'h8` | LW | I-type | `rd = DMEM[rs1 + sign_extend(imm6)]` |
+| `4'h9` | SW | S-type | `DMEM[rs1 + sign_extend(imm6)] = rs2` |
 
 ## Project Structure
 
@@ -60,6 +69,7 @@ Supported opcodes:
 │   ├── alu.v
 │   ├── control_unit.v
 │   ├── cpu.v
+│   ├── dmem.v
 │   ├── imem.v
 │   ├── pc.v
 │   └── regfile.v
@@ -71,19 +81,32 @@ Supported opcodes:
 │   ├── program.hex
 │   ├── isa_tests/
 │   │   ├── program_addi_test.hex
+│   │   ├── program_beq_test.hex
+│   │   ├── program_bne_test.hex
+│   │   ├── program_lw_test.hex
 │   │   ├── program_simple_com.hex
+│   │   ├── program_sw_test.hex
 │   │   ├── tb_addi.v
-│   │   └── tb_simple_com.v
+│   │   ├── tb_beq.v
+│   │   ├── tb_bne.v
+│   │   ├── tb_lw.v
+│   │   ├── tb_simple_com.v
+│   │   └── tb_sw.v
 │   └── unit_tests/
 │       ├── tb_alu.v
 │       ├── tb_control_unit.v
 │       ├── tb_cpu.v
+│       ├── tb_dmem.v
 │       ├── tb_imem.v
 │       ├── tb_pc.v
 │       └── tb_regfile.v
 ├── tools/
+│   ├── simulator.py
+│   ├── simulator.cpp
+│   ├── verify_simulator.py
 │   └── tools/
-│       └── assembler.py
+│       ├── assembler.py
+│       └── assemble_all.py
 ├── sim/
 ├── waves/
 └── README.md
@@ -96,20 +119,25 @@ All current testbenches pass in Icarus Verilog (`iverilog` + `vvp`).
 Unit tests:
 
 - `tests/unit_tests/tb_alu.v`
-- `tests/unit_tests/tb_control_unit.v`
+- `tests/unit_tests/tb_control_unit.v` — includes LW/SW decode verification
 - `tests/unit_tests/tb_pc.v`
 - `tests/unit_tests/tb_regfile.v`
 - `tests/unit_tests/tb_imem.v`
+- `tests/unit_tests/tb_dmem.v` — data memory: sync write, async read, boundaries, overwrite
 - `tests/unit_tests/tb_cpu.v`
 
 ISA tests:
 
-- `tests/isa_tests/tb_simple_com.v` — ADD, SUB, AND, OR
-- `tests/isa_tests/tb_addi.v` — ADDI (positive, negative, wrap-around immediates)
+- `tests/isa_tests/tb_simple_com.v` — ADD, SUB, AND, OR (complementary bit patterns, overflow, underflow)
+- `tests/isa_tests/tb_addi.v` — ADDI (positive, negative, wrap-around, max/min imm6, R0 write-protection)
+- `tests/isa_tests/tb_beq.v` — BEQ (taken, not taken, R0==R0 edge case, offset +2)
+- `tests/isa_tests/tb_bne.v` — BNE (taken, not taken, self-compare, R0!=Rx edge case)
+- `tests/isa_tests/tb_lw.v` — LW (basic load, max offset, negative offset, unwritten address)
+- `tests/isa_tests/tb_sw.v` — SW (basic store, register base, max offset, untouched memory)
 
 ## Assembler
 
-The project now includes an assembler implementation in `tools/tools/assembler.py`.
+The project includes an assembler in `tools/tools/assembler.py`.
 
 Supported mnemonics:
 
@@ -121,6 +149,8 @@ Supported mnemonics:
 - `BEQ rs1, rs2, label_or_offset`
 - `BNE rs1, rs2, label_or_offset`
 - `ADDI rd, rs1, imm` (imm is a signed integer in −32..+31)
+- `LW rd, rs1, imm` (load from DMEM[rs1 + imm])
+- `SW rs2, rs1, imm` (store to DMEM[rs1 + imm])
 
 Assembler features:
 
@@ -138,14 +168,14 @@ Run from repository root.
 Example: CPU integration test
 
 ```bash
-iverilog -o sim/cpu_sim tests/unit_tests/tb_cpu.v src/cpu.v src/pc.v src/imem.v src/control_unit.v src/regfile.v src/alu.v
+iverilog -o sim/cpu_sim tests/unit_tests/tb_cpu.v src/cpu.v src/pc.v src/imem.v src/control_unit.v src/regfile.v src/alu.v src/dmem.v
 vvp sim/cpu_sim
 ```
 
 Example: ISA test
 
 ```bash
-iverilog -o sim/sim_cpu tests/isa_tests/tb_simple_com.v src/cpu.v src/pc.v src/imem.v src/control_unit.v src/regfile.v src/alu.v
+iverilog -o sim/sim_cpu tests/isa_tests/tb_simple_com.v src/cpu.v src/pc.v src/imem.v src/control_unit.v src/regfile.v src/alu.v src/dmem.v
 vvp sim/sim_cpu
 ```
 
@@ -153,12 +183,6 @@ Example: assemble an ISA smoke program
 
 ```bash
 python tools/tools/assembler.py tests/asm/program_simple_com.asm -o tests/isa_tests/program_simple_com.hex --listing sim/program_simple_com.lst
-```
-
-Example: assemble a loop/branch program with labels
-
-```bash
-python tools/tools/assembler.py tests/asm/program_bne_loop.asm -o tests/program_bne_loop.hex --listing sim/program_bne_loop.lst
 ```
 
 Recommended: build all default HEX targets used by tests
@@ -176,7 +200,7 @@ Typical flow:
 ## Behavioral Simulator (Golden Model)
 
 A C++/Python behavioral simulator is included to verify ISA correctness against your Verilog implementation.
-This "Golden Model" executes the same HEX files as the RTL and shows register state after each instruction.
+This "Golden Model" executes the same HEX files as the RTL and shows register and memory state after each instruction.
 
 **Quick start:**
 
@@ -189,23 +213,14 @@ python tools/simulator.py --self-test
 # C++ version (if g++ is installed)
 g++ -o tools/sim_cpu tools/simulator.cpp -std=c++11
 ./tools/sim_cpu tests/program.hex
-./tools/sim_cpu tests/program.hex --demo
 ./tools/sim_cpu --self-test
-```
-
-Windows (MSYS2 one-command compile+run):
-
-```powershell
-C:\msys64\usr\bin\bash.exe -lc 'export PATH=/ucrt64/bin:$PATH; cd /c/Users/LENOVO/Desktop/cursor/Simple-8bit-CPU-Verilog; g++ tools/simulator.cpp -o tools/sim_cpu.exe -std=c++11 && ./tools/sim_cpu.exe tests/program.hex --demo'
 ```
 
 Latest validation highlights:
 
-- Python simulator built-in self-tests: `5/5` passed (`--self-test`, includes ADDI)
-- C++ simulator built-in self-tests: `5/5` passed (`--self-test`, includes ADDI)
-- Verilog PC edge tests in `tests/unit_tests/tb_pc.v` include `+31`, `-32`, and 8-bit wrap-around branch behavior
-- Verilog ADDI ISA test (`tests/isa_tests/tb_addi.v`): PASS — positive imm, negative imm, R0 source, max/min imm6, 8-bit wrap
-- Full regression (`tools/tools/e2e_run.py`) passes after updates
+- Python simulator self-tests: `6/6` passed (includes ALU, branches, ADDI, LW/SW)
+- C++ simulator self-tests: `6/6` passed (includes ALU, branches, ADDI, LW/SW)
+- All Verilog unit tests and ISA tests pass
 
 See [SIMULATOR.md](SIMULATOR.md) for full documentation, ISA reference, troubleshooting, and verification techniques.
 
