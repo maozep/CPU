@@ -13,6 +13,7 @@ Implemented and verified:
 - Data memory: 256x8 RAM with LW (load word) and SW (store word)
 - Register file: 8x8, dual asynchronous read, single synchronous write, R0 hard-wired to zero
 - Branching: BEQ and BNE with signed 6-bit offset
+- Unconditional jump: JMP with signed 6-bit relative offset
 - Real HALT behavior: PC freezes when HALT is decoded
 - Full fetch-decode-execute integration in top-level CPU
 - Assembler tool: Assembly -> HEX with labels and signed branch offset resolution
@@ -46,6 +47,12 @@ Branch format:
 [15:12] opcode | [11:9] rs1 | [8:6] rs2 | [5:0] signed offset
 ```
 
+Jump format (JMP):
+
+```
+[15:12] opcode | [11:6] unused | [5:0] signed offset
+```
+
 Supported opcodes:
 
 | Opcode | Mnemonic | Format | Behavior |
@@ -60,6 +67,7 @@ Supported opcodes:
 | `4'h7` | ADDI | I-type | `rd = rs1 + sign_extend(imm6)` (imm6 range: −32..+31) |
 | `4'h8` | LW | I-type | `rd = DMEM[rs1 + sign_extend(imm6)]` |
 | `4'h9` | SW | S-type | `DMEM[rs1 + sign_extend(imm6)] = rs2` |
+| `4'hA` | JMP | Jump | `PC = PC + 1 + sign_extend(offset)` (unconditional) |
 
 ## Project Structure
 
@@ -86,9 +94,11 @@ Supported opcodes:
 │   │   ├── program_lw_test.hex
 │   │   ├── program_simple_com.hex
 │   │   ├── program_sw_test.hex
+│   │   ├── program_jmp_test.hex
 │   │   ├── tb_addi.v
 │   │   ├── tb_beq.v
 │   │   ├── tb_bne.v
+│   │   ├── tb_jmp.v
 │   │   ├── tb_lw.v
 │   │   ├── tb_simple_com.v
 │   │   └── tb_sw.v
@@ -134,6 +144,7 @@ ISA tests:
 - `tests/isa_tests/tb_bne.v` — BNE (taken, not taken, self-compare, R0!=Rx edge case)
 - `tests/isa_tests/tb_lw.v` — LW (basic load, max offset, negative offset, unwritten address)
 - `tests/isa_tests/tb_sw.v` — SW (basic store, register base, max offset, untouched memory)
+- `tests/isa_tests/tb_jmp.v` — JMP (forward +1, forward +2, backward -4, skipped instruction verification)
 
 ## Assembler
 
@@ -151,6 +162,7 @@ Supported mnemonics:
 - `ADDI rd, rs1, imm` (imm is a signed integer in −32..+31)
 - `LW rd, rs1, imm` (load from DMEM[rs1 + imm])
 - `SW rs2, rs1, imm` (store to DMEM[rs1 + imm])
+- `JMP label_or_offset` (unconditional relative jump)
 
 Assembler features:
 
@@ -218,8 +230,8 @@ g++ -o tools/sim_cpu tools/simulator.cpp -std=c++11
 
 Latest validation highlights:
 
-- Python simulator self-tests: `6/6` passed (includes ALU, branches, ADDI, LW/SW)
-- C++ simulator self-tests: `6/6` passed (includes ALU, branches, ADDI, LW/SW)
+- Python simulator self-tests: `7/7` passed (includes ALU, branches, ADDI, LW/SW, JMP)
+- C++ simulator self-tests: `7/7` passed (includes ALU, branches, ADDI, LW/SW, JMP)
 - All Verilog unit tests and ISA tests pass
 
 See [SIMULATOR.md](SIMULATOR.md) for full documentation, ISA reference, troubleshooting, and verification techniques.

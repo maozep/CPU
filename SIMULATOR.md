@@ -12,7 +12,7 @@ Both **C++** and **Python** versions are provided:
 
 - ✅ Reads `.hex` files (4-digit hex per line, supports `//` comments)
 - ✅ Full Fetch-Decode-Execute loop
-- ✅ Complete ISA support (ALU ops, branches, HALT)
+- ✅ Complete ISA support (ALU ops, branches, JMP, HALT)
 - ✅ Detailed instruction trace (PC, opcode, register updates)
 - ✅ Register state snapshot after each instruction  
 - ✅ Proper sign-extension for 6-bit branch offsets
@@ -39,8 +39,16 @@ Format: `[Opcode 4b][Rd 3b][Rs1 3b][Signed_Imm 6b]`
 | Mnemonic | Opcode | Description |
 |----------|--------|-------------|
 | ADDI rd, rs1, imm6 | 0x7 | rd ← rs1 + sign_extend(imm6) |
+| LW rd, rs1, imm6 | 0x8 | rd ← DMEM[rs1 + sign_extend(imm6)] |
 
 Immediate range: **-32 to +31** (signed 6-bit)
+
+### S-Type Store Instruction
+Format: `[Opcode 4b][Rs2 3b][Rs1 3b][Signed_Imm 6b]`
+
+| Mnemonic | Opcode | Description |
+|----------|--------|-------------|
+| SW rs2, rs1, imm6 | 0x9 | DMEM[rs1 + sign_extend(imm6)] ← rs2 |
 
 ### I-Type Branch Instructions
 Format: `[Opcode 4b][Rs1 3b][Rs2 3b][Signed_Offset 6b]`
@@ -51,6 +59,15 @@ Format: `[Opcode 4b][Rs1 3b][Rs2 3b][Signed_Offset 6b]`
 | BNE rs1, rs2, offset | 0x6 | if (rs1 != rs2) PC ← (PC+1) + offset |
 
 Branch offsets are signed 6-bit values: **-32 to +31**
+
+### Jump Instruction
+Format: `[Opcode 4b][Unused 6b][Signed_Offset 6b]`
+
+| Mnemonic | Opcode | Description |
+|----------|--------|-------------|
+| JMP offset | 0xA | PC ← (PC+1) + sign_extend(offset) (unconditional) |
+
+Jump offsets are signed 6-bit values: **-32 to +31**
 
 ### System Instruction
 | Mnemonic | Opcode | Description |
@@ -101,8 +118,8 @@ C:\msys64\usr\bin\bash.exe -lc 'export PATH=/ucrt64/bin:$PATH; cd /c/Users/LENOV
 
 Latest validated checks include:
 
-1. Python simulator self-tests (`--self-test`): 5/5 pass (includes ADDI)
-2. C++ simulator self-tests (`--self-test`): 5/5 pass (includes ADDI)
+1. Python simulator self-tests (`--self-test`): 7/7 pass (includes ADDI, LW/SW, JMP)
+2. C++ simulator self-tests (`--self-test`): 7/7 pass (includes ADDI, LW/SW, JMP)
 3. Verilog PC critical edge testbench (`tests/unit_tests/tb_pc.v`) now covers:
   - BEQ with max positive offset `+31`
   - BEQ with min negative offset `-32`
@@ -172,15 +189,16 @@ If your Verilog generates identical register states, the implementation is corre
 ## Architecture Details
 
 ### CPU State
-- **Registers**: 8 registers (R0-R7), 8-bit unsigned
-- **Memory**: 256 words of instruction memory, 16-bit per word
+- **Registers**: 8 registers (R0-R7), 8-bit unsigned, R0 hard-wired to zero
+- **Instruction Memory**: 256 words, 16-bit per word (ROM)
+- **Data Memory**: 256 bytes, 8-bit per word (RAM, used by LW/SW)
 - **PC**: 8-bit, automatically wraps at 256
 
 ### Execution Model
 1. **Fetch**: Load instruction at PC from memory
 2. **Decode**: Extract opcode and operands
 3. **Execute**: Perform operation, update registers or PC
-4. **Increment**: PC ← PC+1 (except for HALT or taken branches)
+4. **Increment**: PC ← PC+1 (except for HALT, taken branches, or JMP)
 
 ### Sign Extension
 6-bit signed offsets are sign-extended to handle:
@@ -222,7 +240,8 @@ python: command not found
 
 ## Future Enhancements
 
-- [ ] Implement memory-mapped I/O (LW, SW instructions)
+- [x] ~~Implement memory-mapped I/O (LW, SW instructions)~~ (Done)
+- [x] ~~Unconditional JMP instruction~~ (Done)
 - [ ] Add cycle count / performance profiling
 - [ ] Generate VCD (Value Change Dump) for waveform comparison
 - [ ] Compare register state with Verilog simulation output automatically
