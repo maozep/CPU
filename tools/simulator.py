@@ -197,6 +197,15 @@ class CPUSimulator:
         self.dmem[addr] = data
         self.pc = (self.pc + 1) & 0xFF
 
+    def execute_jmp(self, instr: int):
+        """Execute JMP instruction: unconditional relative jump"""
+        offset_raw = self.extract_bits(instr, 5, 0)
+        offset = self.sign_extend(offset_raw, 6)
+        next_pc = (self.pc + 1 + offset) & 0xFF
+        if self.trace_enabled:
+            print(f"JMP offset={offset} -> PC = {(self.pc + 1) & 0xFF} + {offset} = {next_pc}")
+        self.pc = next_pc
+
     def execute_halt(self):
         """Execute HALT instruction"""
         if self.trace_enabled:
@@ -230,6 +239,8 @@ class CPUSimulator:
             self.execute_lw(instr)
         elif opcode == 0x9:    # SW
             self.execute_sw(instr)
+        elif opcode == 0xA:    # JMP
+            self.execute_jmp(instr)
         else:
             if self.trace_enabled:
                 print(f"UNKNOWN OPCODE 0x{opcode:x}")
@@ -379,6 +390,26 @@ def run_self_tests() -> int:
         assert cpu.dmem[0] == 25, f"DMEM[0]={cpu.dmem[0]}"
         assert cpu.dmem[5] == 10, f"DMEM[5]={cpu.dmem[5]}"
 
+    def test_jmp():
+        cpu = CPUSimulator()
+        cpu.set_trace(False)
+        cpu.load_program([
+            encode_itype(0x7, 1, 0, 5),    # PC=0: ADDI R1, R0, 5
+            encode_branch(0xA, 0, 0, 1),    # PC=1: JMP +1 (skip PC=2)
+            encode_itype(0x7, 4, 0, 20),    # PC=2: ADDI R4, R0, 20 (SKIPPED)
+            encode_branch(0xA, 0, 0, 2),    # PC=3: JMP +2 (skip to PC=6)
+            encode_itype(0x7, 5, 0, 20),    # PC=4: ADDI R5, R0, 20 (via backward)
+            0x0000,                          # PC=5: HALT
+            encode_itype(0x7, 3, 0, 10),    # PC=6: ADDI R3, R0, 10
+            encode_branch(0xA, 0, 0, -4),   # PC=7: JMP -4 (to PC=4)
+        ])
+        assert cpu.run()
+        assert cpu.registers[1] == 5,  f"R1={cpu.registers[1]}"
+        assert cpu.registers[3] == 10, f"R3={cpu.registers[3]}"
+        assert cpu.registers[4] == 0,  f"R4={cpu.registers[4]}"
+        assert cpu.registers[5] == 20, f"R5={cpu.registers[5]}"
+
+    tests.append(("JMP unconditional", test_jmp))
     tests.append(("LW/SW memory", test_lw_sw))
     tests.append(("ALU sequence", test_alu_sequence))
     tests.append(("BEQ taken", test_beq_taken_skip))

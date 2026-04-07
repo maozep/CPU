@@ -1,0 +1,8 @@
+7205  // PC=0: ADDI R1, R0, 5
+A001  // PC=1: JMP +1 (skip PC=2)
+7814  // PC=2: ADDI R4, R0, 20 (SKIPPED)
+A002  // PC=3: JMP +2 (skip to PC=6)
+7A14  // PC=4: ADDI R5, R0, 20 (reached via backward jump)
+0000  // PC=5: HALT
+760A  // PC=6: ADDI R3, R0, 10
+A03C  // PC=7: JMP -4 (back to PC=4)

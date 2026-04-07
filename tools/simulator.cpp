@@ -177,6 +177,9 @@ public:
             case 0x9:  // SW
                 execute_sw(instr);
                 break;
+            case 0xA:  // JMP
+                execute_jmp(instr);
+                break;
             default:
                 if (trace_enabled) {
                     cout << "UNKNOWN OPCODE 0x" << hex << (int)opcode << dec << endl;
@@ -322,6 +325,18 @@ public:
         }
         dmem[addr] = data;
         pc++;
+    }
+
+    // Execute JMP instruction: unconditional relative jump
+    void execute_jmp(uint16_t instr) {
+        uint16_t offset_raw = extract_bits(instr, 5, 0);
+        int16_t offset = sign_extend(offset_raw, 6);
+        uint8_t next_pc = (uint8_t)((pc + 1 + offset) & 0xFF);
+        if (trace_enabled) {
+            cout << "JMP offset=" << (int)offset << " -> PC = "
+                 << (int)(pc + 1) << " + " << (int)offset << " = " << (int)next_pc << endl;
+        }
+        pc = next_pc;
     }
 
     // Execute HALT instruction
@@ -559,6 +574,28 @@ static bool test_lw_sw(string& err) {
     return true;
 }
 
+static bool test_jmp(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_itype(0x7, 1, 0, 5),    // PC=0: ADDI R1, R0, 5
+        encode_branch(0xA, 0, 0, 1),   // PC=1: JMP +1 (skip PC=2)
+        encode_itype(0x7, 4, 0, 20),   // PC=2: ADDI R4, R0, 20 (SKIPPED)
+        encode_branch(0xA, 0, 0, 2),   // PC=3: JMP +2 (skip to PC=6)
+        encode_itype(0x7, 5, 0, 20),   // PC=4: ADDI R5, R0, 20 (via backward)
+        0x0000,                          // PC=5: HALT
+        encode_itype(0x7, 3, 0, 10),   // PC=6: ADDI R3, R0, 10
+        encode_branch(0xA, 0, 0, -4),  // PC=7: JMP -4 (to PC=4)
+    });
+    bool halted = cpu.run();
+    if (!expect_true("Program should HALT", halted, err)) return false;
+    if (!expect_eq_u8("R1", cpu.get_register(1), 5, err)) return false;
+    if (!expect_eq_u8("R3", cpu.get_register(3), 10, err)) return false;
+    if (!expect_eq_u8("R4 (skipped)", cpu.get_register(4), 0, err)) return false;
+    if (!expect_eq_u8("R5 (backward jump)", cpu.get_register(5), 20, err)) return false;
+    return true;
+}
+
 static int run_self_tests() {
     vector<pair<string, function<bool(string&)>>> tests = {
         {"LW/SW memory", test_lw_sw},
@@ -566,7 +603,8 @@ static int run_self_tests() {
         {"BEQ taken", test_beq_taken},
         {"BNE loop to zero", test_bne_loop_to_zero},
         {"Max-steps guard", test_max_steps_guard},
-        {"ADDI immediate", test_addi}
+        {"ADDI immediate", test_addi},
+        {"JMP unconditional", test_jmp}
     };
 
     int passed = 0;

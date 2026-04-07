@@ -36,10 +36,12 @@ OPCODES = {
 	"ADDI": 0x7,
 	"LW": 0x8,
 	"SW": 0x9,
+	"JMP": 0xA,
 }
 
 R_TYPE = {"ADD", "SUB", "AND", "OR"}
 BR_TYPE = {"BEQ", "BNE"}
+J_TYPE = {"JMP"}
 I_TYPE = {"ADDI", "LW"}
 S_TYPE = {"SW"}
 
@@ -218,6 +220,16 @@ def assemble(parsed: Sequence[ParsedLine], labels: Dict[str, int]) -> List[Tuple
 			rs1 = parse_register(ops[1], line.source_line)
 			imm6 = parse_int(ops[2], line.source_line)
 			encoded.append((encode_itype(op, rd, rs1, imm6), line))
+			continue
+
+		if mnemonic in J_TYPE:  # JMP label_or_offset
+			if len(ops) != 1:
+				raise AssemblerError(
+					f"Line {line.source_line}: {mnemonic} expects 1 operand (target)."
+				)
+			target = resolve_branch_target(ops[0], labels, line.source_line)
+			offset = target - (line.pc + 1)
+			encoded.append((encode_branch(op, 0, 0, offset), line))
 			continue
 
 		if mnemonic in S_TYPE:  # SW rs2, rs1, imm
