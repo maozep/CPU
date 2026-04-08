@@ -40,6 +40,9 @@ module tb_alu;
                 3'b010: exp = a_in & b_in;           // AND
                 3'b011: exp = a_in | b_in;           // OR
                 3'b100: exp = a_in ^ b_in;           // XOR
+                3'b101: exp = (a_in << b_in[2:0]) & 8'hFF; // SLL
+                3'b110: exp = a_in >> b_in[2:0];           // SRL
+                3'b111: exp = $signed(a_in) >>> b_in[2:0]; // SRA
                 default: exp = 8'h00;
             endcase
 
@@ -104,6 +107,9 @@ module tb_alu;
                 check(3'b010, vals[i], vals[j]); // AND
                 check(3'b011, vals[i], vals[j]); // OR
                 check(3'b100, vals[i], vals[j]); // XOR
+                check(3'b101, vals[i], vals[j]); // SLL
+                check(3'b110, vals[i], vals[j]); // SRL
+                check(3'b111, vals[i], vals[j]); // SRA
             end
         end
 

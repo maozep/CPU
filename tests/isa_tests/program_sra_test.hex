@@ -1,0 +1,6 @@
+E650  // SRA R3, R1, R2   (0x80 >>> 1 = 0xC0, sign-extended)
+E858  // SRA R4, R1, R3   (0x80 >>> (R3&7=0) = 0x80)
+EA70  // SRA R5, R1, R6   (0x80 >>> 7 = 0xFF, all sign bits)
+EDD0  // SRA R6, R7, R2   (0x7F >>> 1 = 0x3F, positive stays positive)
+EE40  // SRA R7, R1, R0   (0x80 >>> 0 = 0x80, no shift)
+0000  // HALT

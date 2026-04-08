@@ -38,9 +38,12 @@ OPCODES = {
 	"SW": 0x9,
 	"JMP": 0xA,
 	"XOR": 0xB,
+	"SLL": 0xC,
+	"SRL": 0xD,
+	"SRA": 0xE,
 }
 
-R_TYPE = {"ADD", "SUB", "AND", "OR", "XOR"}
+R_TYPE = {"ADD", "SUB", "AND", "OR", "XOR", "SLL", "SRL", "SRA"}
 BR_TYPE = {"BEQ", "BNE"}
 J_TYPE = {"JMP"}
 I_TYPE = {"ADDI", "LW"}

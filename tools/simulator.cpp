@@ -165,6 +165,15 @@ public:
             case 0xB:  // XOR
                 execute_alu(instr, '^');
                 break;
+            case 0xC:  // SLL
+                execute_alu(instr, '<');
+                break;
+            case 0xD:  // SRL
+                execute_alu(instr, '>');
+                break;
+            case 0xE:  // SRA
+                execute_alu(instr, 'a');
+                break;
             case 0x5:  // BEQ
                 execute_branch(instr, true);
                 break;
@@ -251,6 +260,34 @@ public:
                          << ") ^ R" << (int)rs2 << "(" << (int)registers[rs2] << ") = " << (int)result;
                 }
                 break;
+            case '<': {
+                uint8_t shift = registers[rs2] & 0x7;
+                result = (uint8_t)(registers[rs1] << shift);
+                if (trace_enabled) {
+                    cout << "SLL R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
+                         << ") << R" << (int)rs2 << "(" << (int)shift << ") = " << (int)result;
+                }
+                break;
+            }
+            case '>': {
+                uint8_t shift = registers[rs2] & 0x7;
+                result = (uint8_t)(registers[rs1] >> shift);
+                if (trace_enabled) {
+                    cout << "SRL R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
+                         << ") >> R" << (int)rs2 << "(" << (int)shift << ") = " << (int)result;
+                }
+                break;
+            }
+            case 'a': {
+                uint8_t shift = registers[rs2] & 0x7;
+                int8_t signed_val = (int8_t)registers[rs1];
+                result = (uint8_t)(signed_val >> shift);
+                if (trace_enabled) {
+                    cout << "SRA R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
+                         << ") >>> R" << (int)rs2 << "(" << (int)shift << ") = " << (int)result;
+                }
+                break;
+            }
         }
         
         registers[rd] = result;
@@ -606,6 +643,74 @@ static bool test_jmp(string& err) {
     return true;
 }
 
+static bool test_sll(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_rtype(0xC, 3, 1, 2), // R3 = R1 << R2
+        encode_rtype(0xC, 4, 1, 3), // R4 = R1 << R3
+        encode_rtype(0xC, 5, 2, 6), // R5 = R2 << R6
+        encode_rtype(0xC, 6, 1, 0), // R6 = R1 << R0
+        0x0000
+    });
+    cpu.set_register(1, 1);
+    cpu.set_register(2, 0xA5);
+    cpu.set_register(3, 8);
+    cpu.set_register(6, 4);
+    bool halted = cpu.run();
+    if (!expect_true("Program should HALT", halted, err)) return false;
+    if (!expect_eq_u8("R3 (1<<5)", cpu.get_register(3), 32, err)) return false;
+    if (!expect_eq_u8("R4 (1<<0)", cpu.get_register(4), 1, err)) return false;
+    if (!expect_eq_u8("R5 (0xA5<<4)", cpu.get_register(5), 0x50, err)) return false;
+    if (!expect_eq_u8("R6 (1<<0)", cpu.get_register(6), 1, err)) return false;
+    return true;
+}
+
+static bool test_srl(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_rtype(0xD, 3, 1, 2), // R3 = R1 >> R2
+        encode_rtype(0xD, 4, 1, 3), // R4 = R1 >> R3
+        encode_rtype(0xD, 5, 1, 0), // R5 = R1 >> R0
+        0x0000
+    });
+    cpu.set_register(1, 0x80);
+    cpu.set_register(2, 1);
+    cpu.set_register(3, 4);
+    bool halted = cpu.run();
+    if (!expect_true("Program should HALT", halted, err)) return false;
+    if (!expect_eq_u8("R3 (0x80>>1)", cpu.get_register(3), 0x40, err)) return false;
+    if (!expect_eq_u8("R4 (0x80>>0)", cpu.get_register(4), 0x80, err)) return false;
+    if (!expect_eq_u8("R5 (0x80>>0)", cpu.get_register(5), 0x80, err)) return false;
+    return true;
+}
+
+static bool test_sra(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_rtype(0xE, 3, 1, 2), // R3 = R1 >>> R2 (0x80>>>1 = 0xC0)
+        encode_rtype(0xE, 4, 1, 3), // R4 = R1 >>> R3 (0x80>>>(0xC0&7=0) = 0x80)
+        encode_rtype(0xE, 5, 1, 6), // R5 = R1 >>> R6 (0x80>>>7 = 0xFF)
+        encode_rtype(0xE, 6, 7, 2), // R6 = R7 >>> R2 (0x7F>>>1 = 0x3F)
+        encode_rtype(0xE, 7, 1, 0), // R7 = R1 >>> R0 (0x80>>>0 = 0x80)
+        0x0000
+    });
+    cpu.set_register(1, 0x80);
+    cpu.set_register(2, 1);
+    cpu.set_register(6, 7);
+    cpu.set_register(7, 0x7F);
+    bool halted = cpu.run();
+    if (!expect_true("Program should HALT", halted, err)) return false;
+    if (!expect_eq_u8("R3 (0x80>>>1)", cpu.get_register(3), 0xC0, err)) return false;
+    if (!expect_eq_u8("R4 (0x80>>>0)", cpu.get_register(4), 0x80, err)) return false;
+    if (!expect_eq_u8("R5 (0x80>>>7)", cpu.get_register(5), 0xFF, err)) return false;
+    if (!expect_eq_u8("R6 (0x7F>>>1)", cpu.get_register(6), 0x3F, err)) return false;
+    if (!expect_eq_u8("R7 (0x80>>>0)", cpu.get_register(7), 0x80, err)) return false;
+    return true;
+}
+
 static bool test_xor(string& err) {
     CPU cpu;
     cpu.set_trace(false);
@@ -634,7 +739,10 @@ static int run_self_tests() {
         {"Max-steps guard", test_max_steps_guard},
         {"ADDI immediate", test_addi},
         {"JMP unconditional", test_jmp},
-        {"XOR bitwise", test_xor}
+        {"XOR bitwise", test_xor},
+        {"SLL shift left", test_sll},
+        {"SRL shift right", test_srl},
+        {"SRA shift right arithmetic", test_sra}
     };
 
     int passed = 0;

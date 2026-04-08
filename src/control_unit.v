@@ -67,6 +67,18 @@ module control_unit (
                 reg_write = 1'b1;
                 alu_op    = 3'b100;
             end
+            4'hC: begin // SLL
+                reg_write = 1'b1;
+                alu_op    = 3'b101;
+            end
+            4'hD: begin // SRL
+                reg_write = 1'b1;
+                alu_op    = 3'b110;
+            end
+            4'hE: begin // SRA
+                reg_write = 1'b1;
+                alu_op    = 3'b111;
+            end
             4'h7: begin // ADDI: rd = rs1 + sign_extend(instr[5:0])
                 // Field layout: [15:12] opcode | [11:9] rd | [8:6] rs1 | [5:0] imm6
                 rd_addr   = instr[11:9];

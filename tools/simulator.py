@@ -136,6 +136,26 @@ class CPUSimulator:
             result = val1 ^ val2
             if self.trace_enabled:
                 print(f"XOR R{rd} = R{rs1}({val1}) ^ R{rs2}({val2}) = {result}", end="")
+        elif op == '<<':
+            shift = val2 & 0x7
+            result = (val1 << shift) & 0xFF
+            if self.trace_enabled:
+                print(f"SLL R{rd} = R{rs1}({val1}) << R{rs2}({shift}) = {result}", end="")
+        elif op == '>>':
+            shift = val2 & 0x7
+            result = (val1 >> shift) & 0xFF
+            if self.trace_enabled:
+                print(f"SRL R{rd} = R{rs1}({val1}) >> R{rs2}({shift}) = {result}", end="")
+        elif op == '>>>':
+            shift = val2 & 0x7
+            # Arithmetic shift: sign-extend from bit 7
+            if val1 & 0x80:
+                # Negative: shift right and fill with 1s
+                result = ((val1 | 0xFF00) >> shift) & 0xFF
+            else:
+                result = (val1 >> shift) & 0xFF
+            if self.trace_enabled:
+                print(f"SRA R{rd} = R{rs1}({val1}) >>> R{rs2}({shift}) = {result}", end="")
         
         self.registers[rd] = result
         self.pc = (self.pc + 1) & 0xFF
@@ -235,6 +255,12 @@ class CPUSimulator:
             self.execute_alu(instr, '|')
         elif opcode == 0xB:    # XOR
             self.execute_alu(instr, '^')
+        elif opcode == 0xC:    # SLL
+            self.execute_alu(instr, '<<')
+        elif opcode == 0xD:    # SRL
+            self.execute_alu(instr, '>>')
+        elif opcode == 0xE:    # SRA
+            self.execute_alu(instr, '>>>')
         elif opcode == 0x5:    # BEQ
             self.execute_branch(instr, True)
         elif opcode == 0x6:    # BNE
@@ -431,6 +457,75 @@ def run_self_tests() -> int:
         assert cpu.registers[4] == 0x00, f"R4={cpu.registers[4]}"
         assert cpu.registers[5] == 0xA5, f"R5={cpu.registers[5]}"
 
+    def test_sll():
+        cpu = CPUSimulator()
+        cpu.set_trace(False)
+        cpu.load_program([
+            encode_rtype(0xC, 3, 1, 2),  # R3 = R1 << R2 (1 << 3 = 8)
+            encode_rtype(0xC, 4, 1, 3),  # R4 = R1 << R3 (1 << 0 = 1, R3=8 -> 8&7=0)
+            encode_rtype(0xC, 5, 2, 6),  # R5 = R2 << R6 (0xA5 << 4 = 0x50)
+            encode_rtype(0xC, 6, 1, 0),  # R6 = R1 << R0 (1 << 0 = 1)
+            0x0000,
+        ])
+        cpu.set_register(1, 1)
+        cpu.set_register(2, 0xA5)
+        cpu.set_register(3, 8)     # shift by 8 -> &7 = 0
+        cpu.set_register(6, 4)
+        assert cpu.run()
+        # R3 = 1 << (0xA5 & 7) = 1 << 5 = 32
+        assert cpu.registers[3] == 32, f"R3={cpu.registers[3]}"
+        # R4 = 1 << (32 & 7) = 1 << 0 = 1
+        assert cpu.registers[4] == 1, f"R4={cpu.registers[4]}"
+        # R5 = 0xA5 << (4 & 7) = 0xA5 << 4 = 0x50 (truncated to 8-bit)
+        assert cpu.registers[5] == 0x50, f"R5={cpu.registers[5]}"
+        # R6 = 1 << 0 = 1
+        assert cpu.registers[6] == 1, f"R6={cpu.registers[6]}"
+
+    def test_srl():
+        cpu = CPUSimulator()
+        cpu.set_trace(False)
+        cpu.load_program([
+            encode_rtype(0xD, 3, 1, 2),  # R3 = R1 >> R2
+            encode_rtype(0xD, 4, 1, 3),  # R4 = R1 >> R3
+            encode_rtype(0xD, 5, 1, 0),  # R5 = R1 >> R0 (no shift)
+            0x0000,
+        ])
+        cpu.set_register(1, 0x80)
+        cpu.set_register(2, 1)
+        cpu.set_register(3, 4)
+        assert cpu.run()
+        # R3 = 0x80 >> (1 & 7) = 0x40
+        assert cpu.registers[3] == 0x40, f"R3={cpu.registers[3]}"
+        # R4 = 0x80 >> (0x40 & 7) = 0x80 >> 0 = 0x80
+        assert cpu.registers[4] == 0x80, f"R4={cpu.registers[4]}"
+        # R5 = 0x80 >> 0 = 0x80
+        assert cpu.registers[5] == 0x80, f"R5={cpu.registers[5]}"
+
+    def test_sra():
+        cpu = CPUSimulator()
+        cpu.set_trace(False)
+        cpu.load_program([
+            encode_rtype(0xE, 3, 1, 2),  # R3 = R1 >>> R2 (0x80 >>> 1 = 0xC0)
+            encode_rtype(0xE, 4, 1, 3),  # R4 = R1 >>> R3 (0x80 >>> (0xC0&7=0) = 0x80)
+            encode_rtype(0xE, 5, 1, 6),  # R5 = R1 >>> R6 (0x80 >>> 7 = 0xFF)
+            encode_rtype(0xE, 6, 7, 2),  # R6 = R7 >>> R2 (0x7F >>> 1 = 0x3F, positive)
+            encode_rtype(0xE, 7, 1, 0),  # R7 = R1 >>> R0 (0x80 >>> 0 = 0x80)
+            0x0000,
+        ])
+        cpu.set_register(1, 0x80)  # negative (bit 7 set)
+        cpu.set_register(2, 1)
+        cpu.set_register(6, 7)
+        cpu.set_register(7, 0x7F)  # positive (bit 7 clear)
+        assert cpu.run()
+        assert cpu.registers[3] == 0xC0, f"R3={cpu.registers[3]:#x}"
+        assert cpu.registers[4] == 0x80, f"R4={cpu.registers[4]:#x}"
+        assert cpu.registers[5] == 0xFF, f"R5={cpu.registers[5]:#x}"
+        assert cpu.registers[6] == 0x3F, f"R6={cpu.registers[6]:#x}"
+        assert cpu.registers[7] == 0x80, f"R7={cpu.registers[7]:#x}"
+
+    tests.append(("SRA shift right arithmetic", test_sra))
+    tests.append(("SLL shift left", test_sll))
+    tests.append(("SRL shift right", test_srl))
     tests.append(("XOR bitwise", test_xor))
     tests.append(("JMP unconditional", test_jmp))
     tests.append(("LW/SW memory", test_lw_sw))

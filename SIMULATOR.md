@@ -33,6 +33,9 @@ Format: `[Opcode 4b][Rd 3b][Rs1 3b][Rs2 3b][Reserved 3b]`
 | AND rd, rs1, rs2 | 0x3 | rd ← rs1 & rs2 |
 | OR rd, rs1, rs2  | 0x4 | rd ← rs1 \| rs2 |
 | XOR rd, rs1, rs2 | 0xB | rd ← rs1 ^ rs2 |
+| SLL rd, rs1, rs2 | 0xC | rd ← rs1 << rs2[2:0] |
+| SRL rd, rs1, rs2 | 0xD | rd ← rs1 >> rs2[2:0] (logical) |
+| SRA rd, rs1, rs2 | 0xE | rd ← rs1 >>> rs2[2:0] (arithmetic, sign-extending) |
 
 ### I-Type Immediate Instruction
 Format: `[Opcode 4b][Rd 3b][Rs1 3b][Signed_Imm 6b]`
@@ -119,8 +122,8 @@ C:\msys64\usr\bin\bash.exe -lc 'export PATH=/ucrt64/bin:$PATH; cd /c/Users/LENOV
 
 Latest validated checks include:
 
-1. Python simulator self-tests (`--self-test`): 8/8 pass (includes ADDI, LW/SW, JMP, XOR)
-2. C++ simulator self-tests (`--self-test`): 8/8 pass (includes ADDI, LW/SW, JMP, XOR)
+1. Python simulator self-tests (`--self-test`): 11/11 pass (includes ADDI, LW/SW, JMP, XOR, SLL, SRL, SRA)
+2. C++ simulator self-tests (`--self-test`): 11/11 pass (includes ADDI, LW/SW, JMP, XOR, SLL, SRL, SRA)
 3. Verilog PC critical edge testbench (`tests/unit_tests/tb_pc.v`) now covers:
   - BEQ with max positive offset `+31`
   - BEQ with min negative offset `-32`

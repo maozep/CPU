@@ -8,7 +8,7 @@ for end-to-end behavior.
 
 Implemented and verified:
 
-- ALU operations: ADD, SUB, AND, OR, XOR
+- ALU operations: ADD, SUB, AND, OR, XOR, SLL, SRL, SRA
 - Immediate add: ADDI (rd = rs1 + sign_extend(imm6))
 - Data memory: 256x8 RAM with LW (load word) and SW (store word)
 - Register file: 8x8, dual asynchronous read, single synchronous write, R0 hard-wired to zero
@@ -69,6 +69,9 @@ Supported opcodes:
 | `4'h9` | SW | S-type | `DMEM[rs1 + sign_extend(imm6)] = rs2` |
 | `4'hA` | JMP | Jump | `PC = PC + 1 + sign_extend(offset)` (unconditional) |
 | `4'hB` | XOR | R-type | `rd = rs1 ^ rs2` |
+| `4'hC` | SLL | R-type | `rd = rs1 << rs2[2:0]` |
+| `4'hD` | SRL | R-type | `rd = rs1 >> rs2[2:0]` (logical) |
+| `4'hE` | SRA | R-type | `rd = rs1 >>> rs2[2:0]` (arithmetic, sign-extending) |
 
 ## Project Structure
 
@@ -97,11 +100,17 @@ Supported opcodes:
 │   │   ├── program_sw_test.hex
 │   │   ├── program_jmp_test.hex
 │   │   ├── program_xor_test.hex
+│   │   ├── program_sll_test.hex
+│   │   ├── program_srl_test.hex
+│   │   ├── program_sra_test.hex
 │   │   ├── tb_addi.v
 │   │   ├── tb_beq.v
 │   │   ├── tb_bne.v
 │   │   ├── tb_jmp.v
 │   │   ├── tb_xor.v
+│   │   ├── tb_sll.v
+│   │   ├── tb_srl.v
+│   │   ├── tb_sra.v
 │   │   ├── tb_lw.v
 │   │   ├── tb_simple_com.v
 │   │   └── tb_sw.v
@@ -143,6 +152,9 @@ ISA tests:
 
 - `tests/isa_tests/tb_simple_com.v` — ADD, SUB, AND, OR (complementary bit patterns, overflow, underflow)
 - `tests/isa_tests/tb_xor.v` — XOR (complementary bits, self-XOR to zero, identity with R0)
+- `tests/isa_tests/tb_sll.v` — SLL (shift by 1, shift by computed amount, identity shift 0, max shift 7, zero source)
+- `tests/isa_tests/tb_srl.v` — SRL (shift by 1, shift by computed amount, identity shift 0, max shift 7, zero source)
+- `tests/isa_tests/tb_sra.v` — SRA (sign-fill on negative, zero-fill on positive, max shift 7, identity shift 0)
 - `tests/isa_tests/tb_addi.v` — ADDI (positive, negative, wrap-around, max/min imm6, R0 write-protection)
 - `tests/isa_tests/tb_beq.v` — BEQ (taken, not taken, R0==R0 edge case, offset +2)
 - `tests/isa_tests/tb_bne.v` — BNE (taken, not taken, self-compare, R0!=Rx edge case)
@@ -162,6 +174,9 @@ Supported mnemonics:
 - `AND rd, rs1, rs2`
 - `OR rd, rs1, rs2`
 - `XOR rd, rs1, rs2`
+- `SLL rd, rs1, rs2` (shift left logical, shift amount = rs2[2:0])
+- `SRL rd, rs1, rs2` (shift right logical, shift amount = rs2[2:0])
+- `SRA rd, rs1, rs2` (shift right arithmetic, sign-extending, shift amount = rs2[2:0])
 - `BEQ rs1, rs2, label_or_offset`
 - `BNE rs1, rs2, label_or_offset`
 - `ADDI rd, rs1, imm` (imm is a signed integer in −32..+31)
@@ -235,8 +250,8 @@ g++ -o tools/sim_cpu tools/simulator.cpp -std=c++11
 
 Latest validation highlights:
 
-- Python simulator self-tests: `8/8` passed (includes ALU, XOR, branches, ADDI, LW/SW, JMP)
-- C++ simulator self-tests: `8/8` passed (includes ALU, XOR, branches, ADDI, LW/SW, JMP)
+- Python simulator self-tests: `11/11` passed (includes ALU, XOR, SLL, SRL, SRA, branches, ADDI, LW/SW, JMP)
+- C++ simulator self-tests: `11/11` passed (includes ALU, XOR, SLL, SRL, SRA, branches, ADDI, LW/SW, JMP)
 - All Verilog unit tests and ISA tests pass
 
 See [SIMULATOR.md](SIMULATOR.md) for full documentation, ISA reference, troubleshooting, and verification techniques.

@@ -132,6 +132,39 @@ module tb_control_unit;
             errors = errors + 1;
         end
 
+        // SLL scenario: opcode=0xC => reg_write=1, alu_op=3'b101
+        // SLL R3, R1, R2 => instr = 1100 011 001 010 000 = 0xC650
+        instr = 16'hC650;
+        #1;
+        $display("SLL  instr=0x%04h opcode=0x%1h rd=%0d rs1=%0d rs2=%0d reg_write=%b alu_op=0x%1h",
+            instr, opcode, rd_addr, rs1_addr, rs2_addr, reg_write, alu_op);
+        if (reg_write !== 1'b1 || alu_op !== 3'b101) begin
+            $display("FAIL: SLL control mismatch");
+            errors = errors + 1;
+        end
+
+        // SRL scenario: opcode=0xD => reg_write=1, alu_op=3'b110
+        // SRL R3, R1, R2 => instr = 1101 011 001 010 000 = 0xD650
+        instr = 16'hD650;
+        #1;
+        $display("SRL  instr=0x%04h opcode=0x%1h rd=%0d rs1=%0d rs2=%0d reg_write=%b alu_op=0x%1h",
+            instr, opcode, rd_addr, rs1_addr, rs2_addr, reg_write, alu_op);
+        if (reg_write !== 1'b1 || alu_op !== 3'b110) begin
+            $display("FAIL: SRL control mismatch");
+            errors = errors + 1;
+        end
+
+        // SRA scenario: opcode=0xE => reg_write=1, alu_op=3'b111
+        // SRA R3, R1, R2 => instr = 1110 011 001 010 000 = 0xE650
+        instr = 16'hE650;
+        #1;
+        $display("SRA  instr=0x%04h opcode=0x%1h rd=%0d rs1=%0d rs2=%0d reg_write=%b alu_op=0x%1h",
+            instr, opcode, rd_addr, rs1_addr, rs2_addr, reg_write, alu_op);
+        if (reg_write !== 1'b1 || alu_op !== 3'b111) begin
+            $display("FAIL: SRA control mismatch");
+            errors = errors + 1;
+        end
+
         // Unknown scenario: opcode not recognized => reg_write=0, alu_op=3'b000
         instr = 16'hF298;
         #1;

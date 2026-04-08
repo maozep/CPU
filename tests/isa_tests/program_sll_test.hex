@@ -1,0 +1,6 @@
+C650  // SLL R3, R1, R2   (0xA5 << 1 = 0x4A)
+C858  // SLL R4, R1, R3   (0xA5 << 4 = 0x50)  -- R3 is now 0x4A, &7=2 => 0xA5<<2=0x94
+CA40  // SLL R5, R1, R0   (0xA5 << 0 = 0xA5)
+CC70  // SLL R6, R1, R6   (0xA5 << 7 = 0x80)
+CE10  // SLL R7, R0, R2   (0x00 << 1 = 0x00)
+0000  // HALT

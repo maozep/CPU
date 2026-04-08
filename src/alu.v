@@ -14,6 +14,9 @@ module alu (
             3'b010: ALU_Result = A & B;   // AND
             3'b011: ALU_Result = A | B;   // OR
             3'b100: ALU_Result = A ^ B;   // XOR
+            3'b101: ALU_Result = A << B[2:0]; // SLL
+            3'b110: ALU_Result = A >> B[2:0]; // SRL
+            3'b111: ALU_Result = $signed(A) >>> B[2:0]; // SRA
             default: ALU_Result = 8'h00;  // Safe default
         endcase
     end
