@@ -7,8 +7,17 @@
 module cpu (
     input  wire       clk,
     input  wire       rst,
-    output wire [15:0] current_instruction
+    output wire [15:0] current_instruction,
+    output reg  [31:0] cycle_count
 );
+
+    // Cycle counter: counts clock edges while not in reset or halted
+    always @(posedge clk or posedge rst) begin
+        if (rst)
+            cycle_count <= 32'd0;
+        else if (!is_halt)
+            cycle_count <= cycle_count + 32'd1;
+    end
 
     // PC output drives IMEM address (fetch address bus).
     wire [7:0] pc_to_imem;

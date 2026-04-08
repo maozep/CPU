@@ -16,14 +16,16 @@ module tb_lw;
     reg         clk;
     reg         rst;
     wire [15:0] current_instruction;
+    wire [31:0] cycle_count;
 
-    integer cycle_count;
+    integer tb_cc;
     integer errors;
 
     cpu uut (
         .clk                 (clk),
         .rst                 (rst),
-        .current_instruction (current_instruction)
+        .current_instruction (current_instruction),
+        .cycle_count  (cycle_count)
     );
 
     initial clk = 1'b0;
@@ -52,16 +54,16 @@ module tb_lw;
         rst = 1'b0;
         $display("[TB] Reset released at time %0t ns.", $time);
 
-        cycle_count = 0;
-        while (current_instruction !== 16'h0000 && cycle_count < 30) begin
+        tb_cc = 0;
+        while (current_instruction !== 16'h0000 && tb_cc < 30) begin
             @(posedge clk);
-            cycle_count = cycle_count + 1;
+            tb_cc = tb_cc + 1;
         end
         @(posedge clk); #1;
 
         if (current_instruction === 16'h0000)
-            $display("[TB] HALT detected at PC=%0d after %0d cycles.",
-                     uut.pc_to_imem, cycle_count);
+            $display("[TB] HALT detected at PC=%0d after %0d cycles (hw cycles: %0d).",
+                     uut.pc_to_imem, tb_cc, cycle_count);
         else
             $display("[TB] WARNING: timed out without HALT. PC=%0d", uut.pc_to_imem);
 

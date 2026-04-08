@@ -247,7 +247,7 @@ python: command not found
 
 - [x] ~~Implement memory-mapped I/O (LW, SW instructions)~~ (Done)
 - [x] ~~Unconditional JMP instruction~~ (Done)
-- [ ] Add cycle count / performance profiling
-- [ ] Generate VCD (Value Change Dump) for waveform comparison
+- [x] ~~Add cycle count / performance profiling~~ (Done -- 32-bit `cycle_count` output on cpu.v, displayed in all testbenches)
+- [x] ~~Generate VCD (Value Change Dump) for waveform comparison~~ (Done -- all testbenches generate VCD via `$dumpfile`/`$dumpvars`)
 - [ ] Compare register state with Verilog simulation output automatically
 

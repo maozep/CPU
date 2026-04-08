@@ -8,13 +8,15 @@ module tb_cpu;
     reg         clk;
     reg         rst;
     wire [15:0] current_instruction;
+    wire [31:0] cycle_count;
     reg         program_passed;
 
     // Unit under test: top-level CPU (PC + IMEM).
     cpu uut (
         .clk                 (clk),
         .rst                 (rst),
-        .current_instruction (current_instruction)
+        .current_instruction (current_instruction),
+        .cycle_count         (cycle_count)
     );
 
     // 10 ns period: toggle every 5 ns.
