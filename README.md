@@ -1,268 +1,288 @@
 # Simple 8-bit CPU (Verilog)
 
-This repository implements and verifies a simple 8-bit CPU with a 16-bit instruction format.
-The design follows a modular RTL approach, with unit tests for each block and integration/ISA tests
-for end-to-end behavior.
+A single-cycle 8-bit CPU implemented in synthesizable Verilog, with a complete toolchain: assembler, behavioral simulators (Python + C++), and a layered test suite covering unit, ISA, and golden-model verification.
 
-## Current Status
+## Architecture Overview
 
-Implemented and verified:
+| Parameter | Value |
+|---|---|
+| Datapath width | 8-bit |
+| Instruction width | 16-bit |
+| Registers | 8 (R0-R7), R0 hard-wired to zero |
+| Instruction memory | 256 x 16-bit ROM |
+| Data memory | 256 x 8-bit RAM |
+| Program counter | 8-bit, wraps at 256 |
+| Execution model | Single-cycle (fetch-decode-execute in one clock) |
+| Cycle counter | 32-bit hardware counter, exposed as output port |
 
-- ALU operations: ADD, SUB, AND, OR, XOR, SLL, SRL, SRA
-- Set less than: SLTI (signed comparison with immediate)
-- Immediate add: ADDI (rd = rs1 + sign_extend(imm6))
-- Data memory: 256x8 RAM with LW (load word) and SW (store word)
-- Register file: 8x8, dual asynchronous read, single synchronous write, R0 hard-wired to zero
-- Branching: BEQ and BNE with signed 6-bit offset
-- Unconditional jump: JMP with signed 6-bit relative offset
-- Real HALT behavior: PC freezes when HALT is decoded
-- Full fetch-decode-execute integration in top-level CPU
-- Assembler tool: Assembly -> HEX with labels and signed branch offset resolution
+### Microarchitecture
 
-## ISA Summary
+```
+                  +--------+
+         +------->|  IMEM  |-------+
+         |        | 256x16 |       |
+         |        +--------+       |
+         |                         v
+    +----+----+            +---------------+
+    |   PC    |            | Control Unit  |
+    | 8-bit   |<-----------|  (decoder)    |
+    +---------+   branch/  +-------+-------+
+                  jump             |
+                  signals          v
+              +---------+    +---------+    +---------+
+              | RegFile |<-->|   ALU   |<-->|  DMEM   |
+              | 8x8-bit |    | 8-bit   |    | 256x8   |
+              +---------+    +---------+    +---------+
+```
 
-Datapath width: 8-bit  
-Instruction width: 16-bit
+Data flows in a single cycle:
+1. **Fetch** -- PC addresses IMEM, producing a 16-bit instruction
+2. **Decode** -- Control unit extracts opcode, register addresses, immediate, and control signals
+3. **Execute** -- ALU computes result (or SLTI comparator for set-less-than)
+4. **Memory** -- LW reads from DMEM, SW writes to DMEM (address = ALU result)
+5. **Writeback** -- Result written to register file on rising clock edge
 
-R-type format:
+### RTL Modules
 
+| Module | File | Description |
+|---|---|---|
+| `cpu` | `src/cpu.v` | Top-level integration: wires all modules together, includes write-back mux and cycle counter |
+| `pc` | `src/pc.v` | Program counter with reset, halt freeze, branch/jump logic |
+| `imem` | `src/imem.v` | 256x16 instruction ROM, loaded via `$readmemh` |
+| `control_unit` | `src/control_unit.v` | Combinational decoder: instruction to control signals |
+| `regfile` | `src/regfile.v` | 8x8 register file, dual async read, sync write, R0=0 |
+| `alu` | `src/alu.v` | 8 operations: ADD, SUB, AND, OR, XOR, SLL, SRL, SRA |
+| `dmem` | `src/dmem.v` | 256x8 data RAM, async read, sync write |
+
+## Instruction Set
+
+All 16 opcodes (4-bit, `0x0`-`0xF`) are allocated:
+
+| Opcode | Mnemonic | Format | Behavior |
+|---|---|---|---|
+| `0x0` | HALT | -- | Freeze PC, stop execution |
+| `0x1` | ADD | R-type | `rd = rs1 + rs2` |
+| `0x2` | SUB | R-type | `rd = rs1 - rs2` |
+| `0x3` | AND | R-type | `rd = rs1 & rs2` |
+| `0x4` | OR | R-type | `rd = rs1 \| rs2` |
+| `0x5` | BEQ | Branch | `if (rs1 == rs2) PC = PC + 1 + offset` |
+| `0x6` | BNE | Branch | `if (rs1 != rs2) PC = PC + 1 + offset` |
+| `0x7` | ADDI | I-type | `rd = rs1 + sign_extend(imm6)` |
+| `0x8` | LW | I-type | `rd = DMEM[rs1 + sign_extend(imm6)]` |
+| `0x9` | SW | S-type | `DMEM[rs1 + sign_extend(imm6)] = rs2` |
+| `0xA` | JMP | Jump | `PC = PC + 1 + sign_extend(offset)` |
+| `0xB` | XOR | R-type | `rd = rs1 ^ rs2` |
+| `0xC` | SLL | R-type | `rd = rs1 << rs2[2:0]` |
+| `0xD` | SRL | R-type | `rd = rs1 >> rs2[2:0]` (logical, zero-fill) |
+| `0xE` | SRA | R-type | `rd = rs1 >>> rs2[2:0]` (arithmetic, sign-fill) |
+| `0xF` | SLTI | I-type | `rd = (rs1 < sign_extend(imm6)) ? 1 : 0` (signed) |
+
+### Instruction Formats
+
+**R-type** (ADD, SUB, AND, OR, XOR, SLL, SRL, SRA):
 ```
 [15:12] opcode | [11:9] rd | [8:6] rs1 | [5:3] rs2 | [2:0] reserved
 ```
 
-I-type format (ADDI, LW):
-
+**I-type** (ADDI, LW, SLTI):
 ```
-[15:12] opcode | [11:9] rd | [8:6] rs1 | [5:0] signed immediate (imm6)
+[15:12] opcode | [11:9] rd | [8:6] rs1 | [5:0] signed immediate (imm6, range: -32..+31)
 ```
 
-S-type format (SW):
-
+**S-type** (SW):
 ```
 [15:12] opcode | [11:9] rs2 (data) | [8:6] rs1 (base) | [5:0] signed immediate (imm6)
 ```
 
-Branch format:
-
+**Branch** (BEQ, BNE):
 ```
 [15:12] opcode | [11:9] rs1 | [8:6] rs2 | [5:0] signed offset
 ```
 
-Jump format (JMP):
-
+**Jump** (JMP):
 ```
 [15:12] opcode | [11:6] unused | [5:0] signed offset
 ```
 
-Supported opcodes:
+### Design Notes
 
-| Opcode | Mnemonic | Format | Behavior |
-| --- | --- | --- | --- |
-| `4'h0` | HALT | — | Stop PC advance (freeze at current instruction address) |
-| `4'h1` | ADD | R-type | `rd = rs1 + rs2` |
-| `4'h2` | SUB | R-type | `rd = rs1 - rs2` |
-| `4'h3` | AND | R-type | `rd = rs1 & rs2` |
-| `4'h4` | OR | R-type | `rd = rs1 \| rs2` |
-| `4'h5` | BEQ | Branch | if equal, `PC = PC + 1 + offset` |
-| `4'h6` | BNE | Branch | if not equal, `PC = PC + 1 + offset` |
-| `4'h7` | ADDI | I-type | `rd = rs1 + sign_extend(imm6)` (imm6 range: −32..+31) |
-| `4'h8` | LW | I-type | `rd = DMEM[rs1 + sign_extend(imm6)]` |
-| `4'h9` | SW | S-type | `DMEM[rs1 + sign_extend(imm6)] = rs2` |
-| `4'hA` | JMP | Jump | `PC = PC + 1 + sign_extend(offset)` (unconditional) |
-| `4'hB` | XOR | R-type | `rd = rs1 ^ rs2` |
-| `4'hC` | SLL | R-type | `rd = rs1 << rs2[2:0]` |
-| `4'hD` | SRL | R-type | `rd = rs1 >> rs2[2:0]` (logical) |
-| `4'hE` | SRA | R-type | `rd = rs1 >>> rs2[2:0]` (arithmetic, sign-extending) |
-| `4'hF` | SLTI | I-type | `rd = (rs1 < sign_extend(imm6)) ? 1 : 0` (signed) |
-
-## Project Structure
-
-```text
-.
-├── src/
-│   ├── alu.v
-│   ├── control_unit.v
-│   ├── cpu.v
-│   ├── dmem.v
-│   ├── imem.v
-│   ├── pc.v
-│   └── regfile.v
-├── tests/
-│   ├── asm/
-│   │   ├── program_addi_test.asm
-│   │   ├── program_bne_loop.asm
-│   │   └── program_simple_com.asm
-│   ├── program.hex
-│   ├── isa_tests/
-│   │   ├── program_addi_test.hex
-│   │   ├── program_beq_test.hex
-│   │   ├── program_bne_test.hex
-│   │   ├── program_lw_test.hex
-│   │   ├── program_simple_com.hex
-│   │   ├── program_sw_test.hex
-│   │   ├── program_jmp_test.hex
-│   │   ├── program_xor_test.hex
-│   │   ├── program_sll_test.hex
-│   │   ├── program_srl_test.hex
-│   │   ├── program_sra_test.hex
-│   │   ├── program_slti_test.hex
-│   │   ├── tb_addi.v
-│   │   ├── tb_beq.v
-│   │   ├── tb_bne.v
-│   │   ├── tb_jmp.v
-│   │   ├── tb_xor.v
-│   │   ├── tb_sll.v
-│   │   ├── tb_srl.v
-│   │   ├── tb_sra.v
-│   │   ├── tb_slti.v
-│   │   ├── tb_lw.v
-│   │   ├── tb_simple_com.v
-│   │   └── tb_sw.v
-│   └── unit_tests/
-│       ├── tb_alu.v
-│       ├── tb_control_unit.v
-│       ├── tb_cpu.v
-│       ├── tb_dmem.v
-│       ├── tb_imem.v
-│       ├── tb_pc.v
-│       └── tb_regfile.v
-├── tools/
-│   ├── simulator.py
-│   ├── simulator.cpp
-│   ├── verify_simulator.py
-│   └── tools/
-│       ├── assembler.py
-│       └── assemble_all.py
-├── sim/
-├── waves/
-└── README.md
-```
+- **Shift amounts**: SLL/SRL/SRA use only `rs2[2:0]` (0-7), matching the 8-bit datapath width.
+- **SLTI** bypasses the ALU entirely -- a dedicated signed comparator in `cpu.v` feeds the write-back mux.
+- **Branch offsets** are relative to `PC+1`, not `PC`. A BEQ with offset=0 falls through to the next instruction.
+- **All 16 opcodes are used.** Adding new instructions requires either the funct-field approach (using the unused `instr[2:0]` bits in R-type) or widening the instruction format. See the opcode pressure discussion in project docs.
 
 ## Verification
 
-All current testbenches pass in Icarus Verilog (`iverilog` + `vvp`).
+The project uses three independent verification layers. Every instruction is tested at every layer.
 
-Unit tests:
+### Layer 1: Verilog Unit Tests
 
-- `tests/unit_tests/tb_alu.v`
-- `tests/unit_tests/tb_control_unit.v` — includes LW/SW decode verification
-- `tests/unit_tests/tb_pc.v`
-- `tests/unit_tests/tb_regfile.v`
-- `tests/unit_tests/tb_imem.v`
-- `tests/unit_tests/tb_dmem.v` — data memory: sync write, async read, boundaries, overwrite
-- `tests/unit_tests/tb_cpu.v`
+Test each RTL module in isolation with direct stimulus. Run with Icarus Verilog (`iverilog` + `vvp`).
 
-ISA tests:
-
-- `tests/isa_tests/tb_simple_com.v` — ADD, SUB, AND, OR (complementary bit patterns, overflow, underflow)
-- `tests/isa_tests/tb_xor.v` — XOR (complementary bits, self-XOR to zero, identity with R0)
-- `tests/isa_tests/tb_sll.v` — SLL (shift by 1, shift by computed amount, identity shift 0, max shift 7, zero source)
-- `tests/isa_tests/tb_srl.v` — SRL (shift by 1, shift by computed amount, identity shift 0, max shift 7, zero source)
-- `tests/isa_tests/tb_sra.v` — SRA (sign-fill on negative, zero-fill on positive, max shift 7, identity shift 0)
-- `tests/isa_tests/tb_slti.v` — SLTI (less than true/false, equal case, signed negative comparison)
-- `tests/isa_tests/tb_addi.v` — ADDI (positive, negative, wrap-around, max/min imm6, R0 write-protection)
-- `tests/isa_tests/tb_beq.v` — BEQ (taken, not taken, R0==R0 edge case, offset +2)
-- `tests/isa_tests/tb_bne.v` — BNE (taken, not taken, self-compare, R0!=Rx edge case)
-- `tests/isa_tests/tb_lw.v` — LW (basic load, max offset, negative offset, unwritten address)
-- `tests/isa_tests/tb_sw.v` — SW (basic store, register base, max offset, untouched memory)
-- `tests/isa_tests/tb_jmp.v` — JMP (forward +1, forward +2, backward -4, skipped instruction verification)
-
-## Assembler
-
-The project includes an assembler in `tools/tools/assembler.py`.
-
-Supported mnemonics:
-
-- `HALT`
-- `ADD rd, rs1, rs2`
-- `SUB rd, rs1, rs2`
-- `AND rd, rs1, rs2`
-- `OR rd, rs1, rs2`
-- `XOR rd, rs1, rs2`
-- `SLL rd, rs1, rs2` (shift left logical, shift amount = rs2[2:0])
-- `SRL rd, rs1, rs2` (shift right logical, shift amount = rs2[2:0])
-- `SRA rd, rs1, rs2` (shift right arithmetic, sign-extending, shift amount = rs2[2:0])
-- `SLTI rd, rs1, imm` (set 1 if rs1 < imm, signed comparison, imm range: −32..+31)
-- `BEQ rs1, rs2, label_or_offset`
-- `BNE rs1, rs2, label_or_offset`
-- `ADDI rd, rs1, imm` (imm is a signed integer in −32..+31)
-- `LW rd, rs1, imm` (load from DMEM[rs1 + imm])
-- `SW rs2, rs1, imm` (store to DMEM[rs1 + imm])
-- `JMP label_or_offset` (unconditional relative jump)
-
-Assembler features:
-
-- Two-pass parsing (label collection + encoding)
-- Label support (`loop:`)
-- Signed branch offset calculation for 6-bit branch immediate
-- Input validation with source line errors (bad registers, unknown labels, offset out of range)
-- Optional listing output (PC/HEX/source)
-- Default build script that generates the exact HEX files used by tests
-
-## Quick Run Commands
-
-Run from repository root.
-
-Example: CPU integration test
+| Testbench | Module | What it verifies |
+|---|---|---|
+| `tb_alu.v` | ALU | All 8 operations across 8x8 value sweep (500+ checks), zero flag, overflow/underflow wrap |
+| `tb_control_unit.v` | Decoder | Every opcode (0x0-0xF): correct `alu_op`, `reg_write`, `use_imm`, `mem_read/write`, field extraction |
+| `tb_regfile.v` | Registers | Dual async read, sync write, R0 write protection |
+| `tb_pc.v` | PC | Reset, halt freeze, BEQ/BNE with max offsets (+31/-32), 8-bit wrap-around |
+| `tb_imem.v` | IMEM | ROM load via `$readmemh`, address range |
+| `tb_dmem.v` | DMEM | Sync write, async read, boundary addresses, overwrite |
+| `tb_cpu.v` | Top-level | End-to-end: loads `program.hex`, runs to HALT, checks final register state |
 
 ```bash
-iverilog -o sim/cpu_sim tests/unit_tests/tb_cpu.v src/cpu.v src/pc.v src/imem.v src/control_unit.v src/regfile.v src/alu.v src/dmem.v
-vvp sim/cpu_sim
+# Example: run ALU unit test
+iverilog -o sim/alu_sim tests/unit_tests/tb_alu.v src/alu.v
+vvp sim/alu_sim
 ```
 
-Example: ISA test
+### Layer 2: Verilog ISA Tests
+
+Each instruction has a dedicated testbench + HEX program. The testbench loads the HEX, injects register/memory values, runs the CPU to HALT, and checks results. Covers edge cases specific to each instruction.
+
+| Testbench | Instruction | Key edge cases tested |
+|---|---|---|
+| `tb_simple_com.v` | ADD, SUB, AND, OR | Complementary bit patterns (0xA5/0x5A), overflow wrap, underflow wrap, zero result |
+| `tb_xor.v` | XOR | Complementary -> 0xFF, self-XOR -> 0, identity with R0 |
+| `tb_sll.v` | SLL | Shift by 1, shift by computed value, shift 0 (identity), shift 7 (max), zero source |
+| `tb_srl.v` | SRL | Same pattern as SLL, verifies zero-fill from MSB |
+| `tb_sra.v` | SRA | Sign-fill on negative (0x80>>>1=0xC0), zero-fill on positive (0x7F>>>1=0x3F), max shift |
+| `tb_slti.v` | SLTI | True/false/equal cases, signed negative (-128 < 0), cross-sign comparison (5 < -1 = false) |
+| `tb_addi.v` | ADDI | Positive/negative immediate, wrap-around, max/min imm6, R0 write protection |
+| `tb_beq.v` | BEQ | Taken, not taken, R0==R0 edge case, forward offset |
+| `tb_bne.v` | BNE | Taken, not taken, self-compare, R0!=Rx edge case |
+| `tb_lw.v` | LW | Basic load, max offset, negative offset, unwritten address (returns 0) |
+| `tb_sw.v` | SW | Basic store, register base, max offset, untouched memory preserved |
+| `tb_jmp.v` | JMP | Forward +1, forward +2, backward -4, skipped instruction verified |
+
+Each testbench also reports the hardware cycle count from the CPU's built-in counter.
 
 ```bash
-iverilog -o sim/sim_cpu tests/isa_tests/tb_simple_com.v src/cpu.v src/pc.v src/imem.v src/control_unit.v src/regfile.v src/alu.v src/dmem.v
-vvp sim/sim_cpu
+# Example: run XOR ISA test
+iverilog -o sim/xor_sim tests/isa_tests/tb_xor.v src/cpu.v src/pc.v src/imem.v src/control_unit.v src/regfile.v src/alu.v src/dmem.v
+vvp sim/xor_sim
 ```
 
-Example: assemble an ISA smoke program
+### Layer 3: Behavioral Simulators (Golden Model)
+
+Python and C++ simulators execute the same HEX files as the Verilog, serving as an independent reference implementation. Each has a built-in self-test suite.
+
+| Simulator | Self-tests | Coverage |
+|---|---|---|
+| `tools/simulator.py` | 12/12 pass | ALU (ADD/SUB/AND/OR), XOR, SLL, SRL, SRA, SLTI, BEQ, BNE, ADDI, LW/SW, JMP, max-steps guard |
+| `tools/simulator.cpp` | 12/12 pass | Identical test suite to Python |
+
+The simulators can also run any HEX file with full instruction trace, showing PC, decoded operation, and register state at each step -- useful for debugging mismatches against the Verilog.
 
 ```bash
-python tools/tools/assembler.py tests/asm/program_simple_com.asm -o tests/isa_tests/program_simple_com.hex --listing sim/program_simple_com.lst
-```
-
-Recommended: build all default HEX targets used by tests
-
-```bash
-python tools/tools/assemble_all.py
-```
-
-Typical flow:
-
-1. Write or edit an `.asm` file under `tests/asm/`
-2. Run `python tools/tools/assemble_all.py`
-3. Run simulation with `iverilog` + `vvp`
-
-## Behavioral Simulator (Golden Model)
-
-A C++/Python behavioral simulator is included to verify ISA correctness against your Verilog implementation.
-This "Golden Model" executes the same HEX files as the RTL and shows register and memory state after each instruction.
-
-**Quick start:**
-
-```bash
-# Python version (recommended - works immediately)
-python tools/simulator.py tests/program.hex
-python tools/simulator.py tests/program.hex --demo
+# Run self-tests
 python tools/simulator.py --self-test
 
-# C++ version (if g++ is installed)
+# Trace a HEX program
+python tools/simulator.py tests/isa_tests/program_xor_test.hex
+
+# C++ version
 g++ -o tools/sim_cpu tools/simulator.cpp -std=c++11
-./tools/sim_cpu tests/program.hex
 ./tools/sim_cpu --self-test
 ```
 
-Latest validation highlights:
+### Verification Summary
 
-- Python simulator self-tests: `12/12` passed (includes ALU, XOR, SLL, SRL, SRA, SLTI, branches, ADDI, LW/SW, JMP)
-- C++ simulator self-tests: `12/12` passed (includes ALU, XOR, SLL, SRL, SRA, SLTI, branches, ADDI, LW/SW, JMP)
-- All Verilog unit tests and ISA tests pass
+| What | How many | Tool |
+|---|---|---|
+| ALU operations | 500+ value pairs x 8 ops | `tb_alu.v` |
+| Decoder opcodes | All 16 (0x0-0xF) | `tb_control_unit.v` |
+| ISA instructions | 12 dedicated testbenches | `tests/isa_tests/` |
+| Golden model checks | 12 self-tests x 2 languages | `simulator.py`, `simulator.cpp` |
+| VCD waveforms | Generated by every testbench | `$dumpfile` / `$dumpvars` |
 
-See [SIMULATOR.md](SIMULATOR.md) for full documentation, ISA reference, troubleshooting, and verification techniques.
+## Assembler
+
+Two-pass assembler in `tools/tools/assembler.py` converts assembly to HEX.
+
+Supported mnemonics:
+
+```
+HALT
+ADD  rd, rs1, rs2       SUB  rd, rs1, rs2
+AND  rd, rs1, rs2       OR   rd, rs1, rs2
+XOR  rd, rs1, rs2
+SLL  rd, rs1, rs2       SRL  rd, rs1, rs2       SRA  rd, rs1, rs2
+ADDI rd, rs1, imm       SLTI rd, rs1, imm
+LW   rd, rs1, imm       SW   rs2, rs1, imm
+BEQ  rs1, rs2, label    BNE  rs1, rs2, label
+JMP  label
+```
+
+Features: label support, signed offset resolution, range validation, optional listing output.
+
+```bash
+# Assemble a single file
+python tools/tools/assembler.py tests/asm/program_simple_com.asm -o tests/isa_tests/program_simple_com.hex
+
+# Build all default HEX targets
+python tools/tools/assemble_all.py
+```
+
+## Project Structure
+
+```
+src/                        RTL source (7 modules)
+  alu.v                       8 ALU operations (ADD/SUB/AND/OR/XOR/SLL/SRL/SRA)
+  control_unit.v              Instruction decoder (all 16 opcodes)
+  cpu.v                       Top-level integration + cycle counter + SLTI comparator
+  dmem.v                      256x8 data memory (RAM)
+  imem.v                      256x16 instruction memory (ROM)
+  pc.v                        Program counter with branch/jump/halt
+  regfile.v                   8x8 register file (R0=0)
+
+tests/unit_tests/           Component-level testbenches (7)
+  tb_alu.v  tb_control_unit.v  tb_cpu.v  tb_dmem.v
+  tb_imem.v  tb_pc.v  tb_regfile.v
+
+tests/isa_tests/            Per-instruction testbenches (12) + HEX programs (12)
+  tb_simple_com.v + program_simple_com.hex    (ADD/SUB/AND/OR)
+  tb_xor.v        + program_xor_test.hex
+  tb_sll.v        + program_sll_test.hex
+  tb_srl.v        + program_srl_test.hex
+  tb_sra.v        + program_sra_test.hex
+  tb_slti.v       + program_slti_test.hex
+  tb_addi.v       + program_addi_test.hex
+  tb_beq.v        + program_beq_test.hex
+  tb_bne.v        + program_bne_test.hex
+  tb_lw.v         + program_lw_test.hex
+  tb_sw.v         + program_sw_test.hex
+  tb_jmp.v        + program_jmp_test.hex
+
+tests/asm/                  Assembly source files
+tools/simulator.py          Python golden model (12 self-tests)
+tools/simulator.cpp         C++ golden model (12 self-tests)
+tools/tools/assembler.py    Two-pass assembler (ASM -> HEX)
+tools/tools/assemble_all.py Batch assembler for all test programs
+```
+
+## Quick Start
+
+Requirements: [Icarus Verilog](http://iverilog.icarus.com/) (`iverilog` + `vvp`), Python 3+.
+
+```bash
+# 1. Run all unit tests
+for tb in tests/unit_tests/tb_alu.v tests/unit_tests/tb_control_unit.v tests/unit_tests/tb_pc.v tests/unit_tests/tb_regfile.v tests/unit_tests/tb_imem.v tests/unit_tests/tb_dmem.v; do
+  iverilog -o sim/test "$tb" src/alu.v src/control_unit.v src/pc.v src/regfile.v src/imem.v src/dmem.v && vvp sim/test
+done
+
+# 2. Run full CPU integration test
+iverilog -o sim/cpu_sim tests/unit_tests/tb_cpu.v src/cpu.v src/pc.v src/imem.v src/control_unit.v src/regfile.v src/alu.v src/dmem.v
+vvp sim/cpu_sim
+
+# 3. Run an ISA test (e.g. XOR)
+iverilog -o sim/xor_sim tests/isa_tests/tb_xor.v src/cpu.v src/pc.v src/imem.v src/control_unit.v src/regfile.v src/alu.v src/dmem.v
+vvp sim/xor_sim
+
+# 4. Run golden model self-tests
+python tools/simulator.py --self-test
+```
 
 ## Notes
 
-- `imem.v` initializes the full ROM to zero before `$readmemh`, so short HEX programs are safe.
-- You may still see a `$readmemh` warning about "not enough words" when loading short files into a 256-word ROM. This is expected and non-fatal.
+- Short HEX programs produce a harmless `$readmemh` warning ("not enough words") when loaded into the 256-word ROM. This is expected.
+- See [SIMULATOR.md](SIMULATOR.md) for detailed golden model documentation, ISA reference, trace format, and debugging tips.
