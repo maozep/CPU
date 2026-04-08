@@ -49,6 +49,7 @@ module cpu (
     wire       is_bne;
     wire       is_jump;
     wire       is_halt;
+    wire       is_slti;
 
     control_unit control_unit_inst (
         .instr     (current_instruction),
@@ -65,7 +66,8 @@ module cpu (
         .is_branch (is_branch),
         .is_bne    (is_bne),
         .is_jump   (is_jump),
-        .is_halt   (is_halt)
+        .is_halt   (is_halt),
+        .is_slti   (is_slti)
     );
 
     // Register read operands (asynchronous dual-read)
@@ -86,10 +88,15 @@ module cpu (
     // Execute + writeback (single-cycle: regfile writes on posedge clk)
     wire reg_write_gated = reg_write & ~rst;
 
-    // Write-back mux: memory read data (LW) or ALU result
+    // SLTI comparison: signed less-than
+    wire [7:0] slti_result;
+    assign slti_result = ($signed(rs1_data) < $signed(imm6_sext)) ? 8'd1 : 8'd0;
+
+    // Write-back mux: SLTI result, memory read data (LW), or ALU result
     wire [7:0] dmem_read_data;
     wire [7:0] write_back_data;
-    assign write_back_data = mem_to_reg ? dmem_read_data : alu_result;
+    assign write_back_data = is_slti ? slti_result :
+                             mem_to_reg ? dmem_read_data : alu_result;
 
     // Store data for SW: read from rs2 (control unit routes [11:9] to rs2_addr for SW)
     wire [7:0] store_data;

@@ -165,15 +165,23 @@ module tb_control_unit;
             errors = errors + 1;
         end
 
-        // Unknown scenario: opcode not recognized => reg_write=0, alu_op=3'b000
-        instr = 16'hF298;
+        // SLTI scenario: opcode=0xF => reg_write=1, use_imm=1
+        // SLTI R3, R1, 5 => opcode=0xF, rd=3, rs1=1, imm6=5
+        // instr = 1111 011 001 000101 = 0xF645
+        instr = 16'hF645;
         #1;
-        $display("UNK  instr=0x%04h opcode=0x%1h reg_write=%b alu_op=0x%1h",
-            instr, opcode, reg_write, alu_op);
-        if (reg_write !== 1'b0 || alu_op !== 3'b000) begin
-            $display("FAIL: UNKNOWN control mismatch");
+        $display("SLTI instr=0x%04h opcode=0x%1h rd=%0d rs1=%0d reg_write=%b use_imm=%b",
+            instr, opcode, rd_addr, rs1_addr, reg_write, use_imm);
+        if (reg_write !== 1'b1 || use_imm !== 1'b1) begin
+            $display("FAIL: SLTI control mismatch");
             errors = errors + 1;
         end
+        if (rd_addr !== 3'd3 || rs1_addr !== 3'd1) begin
+            $display("FAIL: SLTI register address mismatch rd=%0d rs1=%0d", rd_addr, rs1_addr);
+            errors = errors + 1;
+        end
+
+        // No more unknown scenario -- all opcodes 0x0..0xF are now used
 
         // ADDI scenario: opcode=7 => reg_write=1, alu_op=ADD, use_imm=1
         // ADDI R3, R1, -3 => opcode=0x7, rd=3, rs1=1, imm6=0x3D (-3 in 6-bit)

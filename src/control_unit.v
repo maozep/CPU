@@ -16,7 +16,8 @@ module control_unit (
     output wire        is_branch,
     output wire        is_bne,
     output wire        is_jump,
-    output wire        is_halt
+    output wire        is_halt,
+    output wire        is_slti
 );
 
     parameter BNE = 4'h6;
@@ -25,6 +26,7 @@ module control_unit (
     assign is_bne    = (opcode == BNE);
     assign is_jump   = (opcode == 4'hA);
     assign is_halt   = (opcode == 4'h0);
+    assign is_slti   = (opcode == 4'hF);
 
     always @* begin
         // Default decode (R-type):
@@ -122,6 +124,12 @@ module control_unit (
             end
             4'hA: begin // JMP: unconditional relative jump
                 reg_write = 1'b0;
+            end
+            4'hF: begin // SLTI: rd = (rs1 < sign_extend(imm6)) ? 1 : 0
+                rd_addr   = instr[11:9];
+                rs1_addr  = instr[8:6];
+                reg_write = 1'b1;
+                use_imm   = 1'b1;
             end
             default: begin
                 reg_write = 1'b0;

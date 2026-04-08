@@ -230,6 +230,24 @@ class CPUSimulator:
             print(f"JMP offset={offset} -> PC = {(self.pc + 1) & 0xFF} + {offset} = {next_pc}")
         self.pc = next_pc
 
+    def execute_slti(self, instr: int):
+        """Execute SLTI instruction: rd = (rs1 < sign_extend(imm6)) ? 1 : 0 (signed)"""
+        rd  = self.extract_bits(instr, 11, 9)
+        rs1 = self.extract_bits(instr, 8, 6)
+        imm6_raw = self.extract_bits(instr, 5, 0)
+        imm6 = self.sign_extend(imm6_raw, 6)
+        # Signed comparison: treat 8-bit register as signed
+        val1 = self.registers[rs1]
+        if val1 >= 128:
+            val1_signed = val1 - 256
+        else:
+            val1_signed = val1
+        result = 1 if val1_signed < imm6 else 0
+        if self.trace_enabled:
+            print(f"SLTI R{rd} = (R{rs1}({self.registers[rs1]}) < {imm6}) ? 1 : 0 = {result}")
+        self.registers[rd] = result
+        self.pc = (self.pc + 1) & 0xFF
+
     def execute_halt(self):
         """Execute HALT instruction"""
         if self.trace_enabled:
@@ -273,6 +291,8 @@ class CPUSimulator:
             self.execute_sw(instr)
         elif opcode == 0xA:    # JMP
             self.execute_jmp(instr)
+        elif opcode == 0xF:    # SLTI
+            self.execute_slti(instr)
         else:
             if self.trace_enabled:
                 print(f"UNKNOWN OPCODE 0x{opcode:x}")
@@ -523,6 +543,27 @@ def run_self_tests() -> int:
         assert cpu.registers[6] == 0x3F, f"R6={cpu.registers[6]:#x}"
         assert cpu.registers[7] == 0x80, f"R7={cpu.registers[7]:#x}"
 
+    def test_slti():
+        cpu = CPUSimulator()
+        cpu.set_trace(False)
+        cpu.load_program([
+            encode_itype(0xF, 3, 1, 10),   # R3 = (R1 < 10) ? 1 : 0  (5 < 10 = 1)
+            encode_itype(0xF, 4, 1, 5),    # R4 = (R1 < 5)  ? 1 : 0  (5 < 5 = 0)
+            encode_itype(0xF, 5, 1, 3),    # R5 = (R1 < 3)  ? 1 : 0  (5 < 3 = 0)
+            encode_itype(0xF, 6, 2, 0),    # R6 = (R2 < 0)  ? 1 : 0  (0x80=-128 < 0 = 1, signed)
+            encode_itype(0xF, 7, 1, -1),   # R7 = (R1 < -1) ? 1 : 0  (5 < -1 = 0, signed)
+            0x0000,
+        ])
+        cpu.set_register(1, 5)
+        cpu.set_register(2, 0x80)  # -128 in signed
+        assert cpu.run()
+        assert cpu.registers[3] == 1, f"R3={cpu.registers[3]}"
+        assert cpu.registers[4] == 0, f"R4={cpu.registers[4]}"
+        assert cpu.registers[5] == 0, f"R5={cpu.registers[5]}"
+        assert cpu.registers[6] == 1, f"R6={cpu.registers[6]}"
+        assert cpu.registers[7] == 0, f"R7={cpu.registers[7]}"
+
+    tests.append(("SLTI set less than immediate", test_slti))
     tests.append(("SRA shift right arithmetic", test_sra))
     tests.append(("SLL shift left", test_sll))
     tests.append(("SRL shift right", test_srl))

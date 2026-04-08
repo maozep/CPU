@@ -1,0 +1,6 @@
+F64A  // SLTI R3, R1, 10   (5 < 10 = 1, true)
+F845  // SLTI R4, R1, 5    (5 < 5 = 0, false)
+FA43  // SLTI R5, R1, 3    (5 < 3 = 0, false)
+FC80  // SLTI R6, R2, 0    (-128 < 0 = 1, true, signed)
+FE7F  // SLTI R7, R1, -1   (5 < -1 = 0, false, signed)
+0000  // HALT

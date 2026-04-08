@@ -41,12 +41,13 @@ OPCODES = {
 	"SLL": 0xC,
 	"SRL": 0xD,
 	"SRA": 0xE,
+	"SLTI": 0xF,
 }
 
 R_TYPE = {"ADD", "SUB", "AND", "OR", "XOR", "SLL", "SRL", "SRA"}
 BR_TYPE = {"BEQ", "BNE"}
 J_TYPE = {"JMP"}
-I_TYPE = {"ADDI", "LW"}
+I_TYPE = {"ADDI", "LW", "SLTI"}
 S_TYPE = {"SW"}
 
 COMMENT_MARKERS = ("//", "#", ";")

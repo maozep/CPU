@@ -43,6 +43,7 @@ Format: `[Opcode 4b][Rd 3b][Rs1 3b][Signed_Imm 6b]`
 | Mnemonic | Opcode | Description |
 |----------|--------|-------------|
 | ADDI rd, rs1, imm6 | 0x7 | rd ← rs1 + sign_extend(imm6) |
+| SLTI rd, rs1, imm6 | 0xF | rd ← (rs1 < sign_extend(imm6)) ? 1 : 0 (signed) |
 | LW rd, rs1, imm6 | 0x8 | rd ← DMEM[rs1 + sign_extend(imm6)] |
 
 Immediate range: **-32 to +31** (signed 6-bit)
@@ -122,8 +123,8 @@ C:\msys64\usr\bin\bash.exe -lc 'export PATH=/ucrt64/bin:$PATH; cd /c/Users/LENOV
 
 Latest validated checks include:
 
-1. Python simulator self-tests (`--self-test`): 11/11 pass (includes ADDI, LW/SW, JMP, XOR, SLL, SRL, SRA)
-2. C++ simulator self-tests (`--self-test`): 11/11 pass (includes ADDI, LW/SW, JMP, XOR, SLL, SRL, SRA)
+1. Python simulator self-tests (`--self-test`): 12/12 pass (includes ADDI, LW/SW, JMP, XOR, SLL, SRL, SRA, SLTI)
+2. C++ simulator self-tests (`--self-test`): 12/12 pass (includes ADDI, LW/SW, JMP, XOR, SLL, SRL, SRA, SLTI)
 3. Verilog PC critical edge testbench (`tests/unit_tests/tb_pc.v`) now covers:
   - BEQ with max positive offset `+31`
   - BEQ with min negative offset `-32`

@@ -192,6 +192,9 @@ public:
             case 0xA:  // JMP
                 execute_jmp(instr);
                 break;
+            case 0xF:  // SLTI
+                execute_slti(instr);
+                break;
             default:
                 if (trace_enabled) {
                     cout << "UNKNOWN OPCODE 0x" << hex << (int)opcode << dec << endl;
@@ -384,6 +387,23 @@ public:
                  << (int)(pc + 1) << " + " << (int)offset << " = " << (int)next_pc << endl;
         }
         pc = next_pc;
+    }
+
+    // Execute SLTI instruction: rd = (rs1 < sign_extend(imm6)) ? 1 : 0 (signed)
+    void execute_slti(uint16_t instr) {
+        uint8_t rd  = (uint8_t)extract_bits(instr, 11, 9);
+        uint8_t rs1 = (uint8_t)extract_bits(instr, 8, 6);
+        uint16_t imm6_raw = extract_bits(instr, 5, 0);
+        int16_t imm6 = sign_extend(imm6_raw, 6);
+        int8_t val1_signed = (int8_t)registers[rs1];
+        uint8_t result = (val1_signed < imm6) ? 1 : 0;
+        if (trace_enabled) {
+            cout << "SLTI R" << (int)rd << " = (R" << (int)rs1
+                 << "(" << (int)registers[rs1] << ") < " << (int)imm6
+                 << ") ? 1 : 0 = " << (int)result << endl;
+        }
+        registers[rd] = result;
+        pc++;
     }
 
     // Execute HALT instruction
@@ -686,6 +706,29 @@ static bool test_srl(string& err) {
     return true;
 }
 
+static bool test_slti(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_itype(0xF, 3, 1, 10),  // R3 = (5 < 10) = 1
+        encode_itype(0xF, 4, 1, 5),   // R4 = (5 < 5) = 0
+        encode_itype(0xF, 5, 1, 3),   // R5 = (5 < 3) = 0
+        encode_itype(0xF, 6, 2, 0),   // R6 = (-128 < 0) = 1
+        encode_itype(0xF, 7, 1, -1),  // R7 = (5 < -1) = 0
+        0x0000
+    });
+    cpu.set_register(1, 5);
+    cpu.set_register(2, 0x80); // -128 signed
+    bool halted = cpu.run();
+    if (!expect_true("Program should HALT", halted, err)) return false;
+    if (!expect_eq_u8("R3 (5<10)",   cpu.get_register(3), 1, err)) return false;
+    if (!expect_eq_u8("R4 (5<5)",    cpu.get_register(4), 0, err)) return false;
+    if (!expect_eq_u8("R5 (5<3)",    cpu.get_register(5), 0, err)) return false;
+    if (!expect_eq_u8("R6 (-128<0)", cpu.get_register(6), 1, err)) return false;
+    if (!expect_eq_u8("R7 (5<-1)",   cpu.get_register(7), 0, err)) return false;
+    return true;
+}
+
 static bool test_sra(string& err) {
     CPU cpu;
     cpu.set_trace(false);
@@ -742,7 +785,8 @@ static int run_self_tests() {
         {"XOR bitwise", test_xor},
         {"SLL shift left", test_sll},
         {"SRL shift right", test_srl},
-        {"SRA shift right arithmetic", test_sra}
+        {"SRA shift right arithmetic", test_sra},
+        {"SLTI set less than immediate", test_slti}
     };
 
     int passed = 0;
