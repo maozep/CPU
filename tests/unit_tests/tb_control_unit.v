@@ -120,6 +120,18 @@ module tb_control_unit;
             errors = errors + 1;
         end
 
+        // XOR scenario: opcode=0xB => reg_write=1, alu_op=3'b100
+        // XOR R3, R1, R2 => opcode=0xB, rd=3, rs1=1, rs2=2
+        // instr = 1011 011 001 010 000 = 0xB650
+        instr = 16'hB650;
+        #1;
+        $display("XOR  instr=0x%04h opcode=0x%1h rd=%0d rs1=%0d rs2=%0d reg_write=%b alu_op=0x%1h",
+            instr, opcode, rd_addr, rs1_addr, rs2_addr, reg_write, alu_op);
+        if (reg_write !== 1'b1 || alu_op !== 3'b100) begin
+            $display("FAIL: XOR control mismatch");
+            errors = errors + 1;
+        end
+
         // Unknown scenario: opcode not recognized => reg_write=0, alu_op=3'b000
         instr = 16'hF298;
         #1;

@@ -162,6 +162,9 @@ public:
             case 0x4:  // OR
                 execute_alu(instr, '|');
                 break;
+            case 0xB:  // XOR
+                execute_alu(instr, '^');
+                break;
             case 0x5:  // BEQ
                 execute_branch(instr, true);
                 break;
@@ -204,7 +207,7 @@ public:
         pc++;
     }
 
-    // Execute ALU instruction (ADD, SUB, AND, OR)
+    // Execute ALU instruction (ADD, SUB, AND, OR, XOR)
     void execute_alu(uint16_t instr, char op) {
         uint8_t rd  = (uint8_t)extract_bits(instr, 11, 9);
         uint8_t rs1 = (uint8_t)extract_bits(instr, 8, 6);
@@ -239,6 +242,13 @@ public:
                 if (trace_enabled) {
                     cout << "OR  R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
                          << ") | R" << (int)rs2 << "(" << (int)registers[rs2] << ") = " << (int)result;
+                }
+                break;
+            case '^':
+                result = registers[rs1] ^ registers[rs2];
+                if (trace_enabled) {
+                    cout << "XOR R" << (int)rd << " = R" << (int)rs1 << "(" << (int)registers[rs1]
+                         << ") ^ R" << (int)rs2 << "(" << (int)registers[rs2] << ") = " << (int)result;
                 }
                 break;
         }
@@ -596,6 +606,25 @@ static bool test_jmp(string& err) {
     return true;
 }
 
+static bool test_xor(string& err) {
+    CPU cpu;
+    cpu.set_trace(false);
+    cpu.load_program({
+        encode_rtype(0xB, 3, 1, 2), // R3 = R1 ^ R2
+        encode_rtype(0xB, 4, 1, 1), // R4 = R1 ^ R1 (should be 0)
+        encode_rtype(0xB, 5, 1, 0), // R5 = R1 ^ R0 (should be R1)
+        0x0000
+    });
+    cpu.set_register(1, 0xA5);
+    cpu.set_register(2, 0x5A);
+    bool halted = cpu.run();
+    if (!expect_true("Program should HALT", halted, err)) return false;
+    if (!expect_eq_u8("R3 (0xA5^0x5A)", cpu.get_register(3), 0xFF, err)) return false;
+    if (!expect_eq_u8("R4 (0xA5^0xA5)", cpu.get_register(4), 0x00, err)) return false;
+    if (!expect_eq_u8("R5 (0xA5^0x00)", cpu.get_register(5), 0xA5, err)) return false;
+    return true;
+}
+
 static int run_self_tests() {
     vector<pair<string, function<bool(string&)>>> tests = {
         {"LW/SW memory", test_lw_sw},
@@ -604,7 +633,8 @@ static int run_self_tests() {
         {"BNE loop to zero", test_bne_loop_to_zero},
         {"Max-steps guard", test_max_steps_guard},
         {"ADDI immediate", test_addi},
-        {"JMP unconditional", test_jmp}
+        {"JMP unconditional", test_jmp},
+        {"XOR bitwise", test_xor}
     };
 
     int passed = 0;

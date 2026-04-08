@@ -63,6 +63,10 @@ module control_unit (
                 reg_write = 1'b1;
                 alu_op    = 3'b011;
             end
+            4'hB: begin // XOR
+                reg_write = 1'b1;
+                alu_op    = 3'b100;
+            end
             4'h7: begin // ADDI: rd = rs1 + sign_extend(instr[5:0])
                 // Field layout: [15:12] opcode | [11:9] rd | [8:6] rs1 | [5:0] imm6
                 rd_addr   = instr[11:9];

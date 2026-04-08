@@ -12,7 +12,7 @@ Both **C++** and **Python** versions are provided:
 
 - ✅ Reads `.hex` files (4-digit hex per line, supports `//` comments)
 - ✅ Full Fetch-Decode-Execute loop
-- ✅ Complete ISA support (ALU ops, branches, JMP, HALT)
+- ✅ Complete ISA support (ALU ops incl. XOR, branches, JMP, HALT)
 - ✅ Detailed instruction trace (PC, opcode, register updates)
 - ✅ Register state snapshot after each instruction  
 - ✅ Proper sign-extension for 6-bit branch offsets
@@ -32,6 +32,7 @@ Format: `[Opcode 4b][Rd 3b][Rs1 3b][Rs2 3b][Reserved 3b]`
 | SUB rd, rs1, rs2 | 0x2 | rd ← rs1 - rs2 |
 | AND rd, rs1, rs2 | 0x3 | rd ← rs1 & rs2 |
 | OR rd, rs1, rs2  | 0x4 | rd ← rs1 \| rs2 |
+| XOR rd, rs1, rs2 | 0xB | rd ← rs1 ^ rs2 |
 
 ### I-Type Immediate Instruction
 Format: `[Opcode 4b][Rd 3b][Rs1 3b][Signed_Imm 6b]`
@@ -118,8 +119,8 @@ C:\msys64\usr\bin\bash.exe -lc 'export PATH=/ucrt64/bin:$PATH; cd /c/Users/LENOV
 
 Latest validated checks include:
 
-1. Python simulator self-tests (`--self-test`): 7/7 pass (includes ADDI, LW/SW, JMP)
-2. C++ simulator self-tests (`--self-test`): 7/7 pass (includes ADDI, LW/SW, JMP)
+1. Python simulator self-tests (`--self-test`): 8/8 pass (includes ADDI, LW/SW, JMP, XOR)
+2. C++ simulator self-tests (`--self-test`): 8/8 pass (includes ADDI, LW/SW, JMP, XOR)
 3. Verilog PC critical edge testbench (`tests/unit_tests/tb_pc.v`) now covers:
   - BEQ with max positive offset `+31`
   - BEQ with min negative offset `-32`

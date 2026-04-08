@@ -39,6 +39,7 @@ module tb_alu;
                 3'b001: exp = (a_in - b_in) & 8'hFF; // SUB
                 3'b010: exp = a_in & b_in;           // AND
                 3'b011: exp = a_in | b_in;           // OR
+                3'b100: exp = a_in ^ b_in;           // XOR
                 default: exp = 8'h00;
             endcase
 
@@ -102,6 +103,7 @@ module tb_alu;
                 check(3'b001, vals[i], vals[j]); // SUB
                 check(3'b010, vals[i], vals[j]); // AND
                 check(3'b011, vals[i], vals[j]); // OR
+                check(3'b100, vals[i], vals[j]); // XOR
             end
         end
 

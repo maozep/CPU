@@ -132,6 +132,10 @@ class CPUSimulator:
             result = val1 | val2
             if self.trace_enabled:
                 print(f"OR  R{rd} = R{rs1}({val1}) | R{rs2}({val2}) = {result}", end="")
+        elif op == '^':
+            result = val1 ^ val2
+            if self.trace_enabled:
+                print(f"XOR R{rd} = R{rs1}({val1}) ^ R{rs2}({val2}) = {result}", end="")
         
         self.registers[rd] = result
         self.pc = (self.pc + 1) & 0xFF
@@ -229,6 +233,8 @@ class CPUSimulator:
             self.execute_alu(instr, '&')
         elif opcode == 0x4:    # OR
             self.execute_alu(instr, '|')
+        elif opcode == 0xB:    # XOR
+            self.execute_alu(instr, '^')
         elif opcode == 0x5:    # BEQ
             self.execute_branch(instr, True)
         elif opcode == 0x6:    # BNE
@@ -409,6 +415,23 @@ def run_self_tests() -> int:
         assert cpu.registers[4] == 0,  f"R4={cpu.registers[4]}"
         assert cpu.registers[5] == 20, f"R5={cpu.registers[5]}"
 
+    def test_xor():
+        cpu = CPUSimulator()
+        cpu.set_trace(False)
+        cpu.load_program([
+            encode_rtype(0xB, 3, 1, 2),  # R3 = R1 ^ R2
+            encode_rtype(0xB, 4, 1, 1),  # R4 = R1 ^ R1 (should be 0)
+            encode_rtype(0xB, 5, 1, 0),  # R5 = R1 ^ R0 (should be R1)
+            0x0000,
+        ])
+        cpu.set_register(1, 0xA5)
+        cpu.set_register(2, 0x5A)
+        assert cpu.run()
+        assert cpu.registers[3] == 0xFF, f"R3={cpu.registers[3]}"
+        assert cpu.registers[4] == 0x00, f"R4={cpu.registers[4]}"
+        assert cpu.registers[5] == 0xA5, f"R5={cpu.registers[5]}"
+
+    tests.append(("XOR bitwise", test_xor))
     tests.append(("JMP unconditional", test_jmp))
     tests.append(("LW/SW memory", test_lw_sw))
     tests.append(("ALU sequence", test_alu_sequence))

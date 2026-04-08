@@ -13,6 +13,7 @@ module alu (
             3'b001: ALU_Result = A - B;   // SUB
             3'b010: ALU_Result = A & B;   // AND
             3'b011: ALU_Result = A | B;   // OR
+            3'b100: ALU_Result = A ^ B;   // XOR
             default: ALU_Result = 8'h00;  // Safe default
         endcase
     end

@@ -8,7 +8,7 @@ for end-to-end behavior.
 
 Implemented and verified:
 
-- ALU operations: ADD, SUB, AND, OR
+- ALU operations: ADD, SUB, AND, OR, XOR
 - Immediate add: ADDI (rd = rs1 + sign_extend(imm6))
 - Data memory: 256x8 RAM with LW (load word) and SW (store word)
 - Register file: 8x8, dual asynchronous read, single synchronous write, R0 hard-wired to zero
@@ -68,6 +68,7 @@ Supported opcodes:
 | `4'h8` | LW | I-type | `rd = DMEM[rs1 + sign_extend(imm6)]` |
 | `4'h9` | SW | S-type | `DMEM[rs1 + sign_extend(imm6)] = rs2` |
 | `4'hA` | JMP | Jump | `PC = PC + 1 + sign_extend(offset)` (unconditional) |
+| `4'hB` | XOR | R-type | `rd = rs1 ^ rs2` |
 
 ## Project Structure
 
@@ -95,10 +96,12 @@ Supported opcodes:
 │   │   ├── program_simple_com.hex
 │   │   ├── program_sw_test.hex
 │   │   ├── program_jmp_test.hex
+│   │   ├── program_xor_test.hex
 │   │   ├── tb_addi.v
 │   │   ├── tb_beq.v
 │   │   ├── tb_bne.v
 │   │   ├── tb_jmp.v
+│   │   ├── tb_xor.v
 │   │   ├── tb_lw.v
 │   │   ├── tb_simple_com.v
 │   │   └── tb_sw.v
@@ -139,6 +142,7 @@ Unit tests:
 ISA tests:
 
 - `tests/isa_tests/tb_simple_com.v` — ADD, SUB, AND, OR (complementary bit patterns, overflow, underflow)
+- `tests/isa_tests/tb_xor.v` — XOR (complementary bits, self-XOR to zero, identity with R0)
 - `tests/isa_tests/tb_addi.v` — ADDI (positive, negative, wrap-around, max/min imm6, R0 write-protection)
 - `tests/isa_tests/tb_beq.v` — BEQ (taken, not taken, R0==R0 edge case, offset +2)
 - `tests/isa_tests/tb_bne.v` — BNE (taken, not taken, self-compare, R0!=Rx edge case)
@@ -157,6 +161,7 @@ Supported mnemonics:
 - `SUB rd, rs1, rs2`
 - `AND rd, rs1, rs2`
 - `OR rd, rs1, rs2`
+- `XOR rd, rs1, rs2`
 - `BEQ rs1, rs2, label_or_offset`
 - `BNE rs1, rs2, label_or_offset`
 - `ADDI rd, rs1, imm` (imm is a signed integer in −32..+31)
@@ -230,8 +235,8 @@ g++ -o tools/sim_cpu tools/simulator.cpp -std=c++11
 
 Latest validation highlights:
 
-- Python simulator self-tests: `7/7` passed (includes ALU, branches, ADDI, LW/SW, JMP)
-- C++ simulator self-tests: `7/7` passed (includes ALU, branches, ADDI, LW/SW, JMP)
+- Python simulator self-tests: `8/8` passed (includes ALU, XOR, branches, ADDI, LW/SW, JMP)
+- C++ simulator self-tests: `8/8` passed (includes ALU, XOR, branches, ADDI, LW/SW, JMP)
 - All Verilog unit tests and ISA tests pass
 
 See [SIMULATOR.md](SIMULATOR.md) for full documentation, ISA reference, troubleshooting, and verification techniques.
