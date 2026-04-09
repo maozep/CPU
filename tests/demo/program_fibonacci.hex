@@ -1,0 +1,12 @@
+7200  // PC=0:  ADDI R1, R0, 0     ; fib_prev = 0
+7401  // PC=1:  ADDI R2, R0, 1     ; fib_curr = 1
+7800  // PC=2:  ADDI R4, R0, 0     ; DMEM address = 0
+7A07  // PC=3:  ADDI R5, R0, 7     ; limit = 7 (compute 7 Fibonacci numbers)
+9500  // PC=4:  SW   R2, R4, 0     ; DMEM[addr] = fib_curr       << LOOP
+1650  // PC=5:  ADD  R3, R1, R2    ; temp = fib_prev + fib_curr
+7280  // PC=6:  ADDI R1, R2, 0     ; fib_prev = fib_curr
+74C0  // PC=7:  ADDI R2, R3, 0     ; fib_curr = temp
+7901  // PC=8:  ADDI R4, R4, 1     ; addr++
+697A  // PC=9:  BNE  R4, R5, -6    ; if addr != 7 goto LOOP (PC=4)
+9500  // PC=10: SW   R2, R4, 0     ; DMEM[7] = final value (21)
+0000  // PC=11: HALT
