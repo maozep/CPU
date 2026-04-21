@@ -601,16 +601,31 @@ def main():
         sys.exit(1)
     
     hex_file = sys.argv[1]
+    flags = set(sys.argv[2:])
     cpu = CPUSimulator()
-    
+
     if not cpu.load_hex(hex_file):
         sys.exit(1)
 
-    if len(sys.argv) >= 3 and sys.argv[2] == "--demo":
+    if "--demo" in flags:
         print("[MODE] Demo register seed enabled (R1=1..R7=7)")
         cpu.seed_demo_registers()
-    
-    cpu.run()
+
+    if "--summary" in flags:
+        cpu.set_trace(False)
+        halted = cpu.run()
+        print(f"\n=== Python Golden Model ===")
+        print(f"Program: {hex_file}")
+        print(f"Instructions executed: {cpu.instruction_count}")
+        print(f"Final PC: {cpu.pc}")
+        print(f"Registers: " + " ".join(f"R{i}={cpu.registers[i]}" for i in range(8)))
+        # Show non-zero DMEM
+        dmem_entries = [(a, cpu.dmem[a]) for a in range(256) if cpu.dmem[a] != 0]
+        if dmem_entries:
+            print(f"DMEM: " + "  ".join(f"[{a}]={v}" for a, v in dmem_entries))
+        print(f"Status: {'HALT' if halted else 'TIMEOUT'}")
+    else:
+        cpu.run()
 
 
 if __name__ == "__main__":

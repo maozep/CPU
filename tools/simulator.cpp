@@ -447,7 +447,7 @@ public:
         }
         
         if (trace_enabled) {
-            cout << "\n=== Simulation Complete ===" << endl;
+            cout << "\n=== C++ Golden Model ===" << endl;
             cout << "Total instructions executed: " << instruction_count << endl;
             cout << "Final PC: " << (int)pc << endl;
             cout << "Final Registers: ";

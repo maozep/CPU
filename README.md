@@ -1,5 +1,9 @@
 # Simple 8-bit CPU (Verilog)
 
+![Circuit schematic](screenshot/%D7%A9%D7%A8%D7%98%D7%95%D7%98%20%D7%94%D7%9E%D7%A2%D7%92%D7%9C.png)
+
+*Schematic of the circuit.*
+
 A single-cycle 8-bit CPU implemented in synthesizable Verilog, with a complete toolchain: assembler, behavioral simulators (Python + C++), and a layered test suite covering unit, ISA, and golden-model verification.
 
 ## Architecture Overview
